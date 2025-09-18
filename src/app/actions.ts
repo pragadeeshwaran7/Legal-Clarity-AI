@@ -5,9 +5,11 @@ import { assessDocumentRisk } from "@/ai/flows/assess-document-risk";
 import { answerDocumentQuestions } from "@/ai/flows/answer-document-questions";
 import { simplifyLegalJargon } from "@/ai/flows/simplify-legal-jargon";
 import { compareDocuments } from "@/ai/flows/compare-documents";
+import { performOcr } from "@/ai/flows/perform-ocr";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
+import pdf from "pdf-parse";
 
 const FileSchema = z.object({
   file: z
@@ -27,21 +29,47 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
   return result.value;
 }
 
+async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
+  const data = await pdf(Buffer.from(buffer));
+  // If the PDF has no text, it might be a scanned document.
+  if (!data.text.trim()) {
+    return ""; // Return empty to signal it might be an image-only PDF
+  }
+  return data.text;
+}
+
+async function getTextFromImage(buffer: ArrayBuffer, mimeType: string): Promise<string> {
+  const b64 = Buffer.from(buffer).toString('base64');
+  const dataUri = `data:${mimeType};base64,${b64}`;
+  const result = await performOcr({ imageDataUri: dataUri });
+  return result.text;
+}
+
+
 async function getTextFromFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  if (file.type === "application/pdf") {
-    // PDF parsing is complex and would require a dedicated library.
-    // For this example, we'll return a placeholder.
-    // In a real app, you might use a service or a library like 'pdf-parse'.
-    console.warn("PDF parsing is not fully implemented. Using placeholder text.");
-    return `This is a placeholder for the content of the PDF file named ${file.name}. True PDF text extraction requires a library like 'pdf-parse' on the server.`;
+
+  if (file.type.startsWith("image/")) {
+    return getTextFromImage(buffer, file.type);
   }
+
   if (
     file.type ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return getTextFromDocx(buffer);
   }
+
+  if (file.type === "application/pdf") {
+    const pdfText = await getTextFromPdf(buffer);
+    // If pdf-parse returns no text, assume it's a scanned PDF and run OCR
+    if (!pdfText) {
+      console.log("PDF contains no text. Attempting OCR...");
+      return getTextFromImage(buffer, "image/jpeg"); // Treat as image
+    }
+    return pdfText;
+  }
+  
   return new TextDecoder().decode(buffer);
 }
 
@@ -68,10 +96,10 @@ export async function analyzeDocument(
   let documentText = "";
   try {
     documentText = await getTextFromFile(file);
-    if (documentText.length < 50) {
+    if (!documentText || documentText.length < 20) {
       return {
         data: null,
-        error: "Document text must be at least 50 characters long.",
+        error: "Could not extract sufficient text from the document. It might be empty, scanned, or in an unsupported format.",
         fileName: file.name,
         documentText: "",
       }
@@ -162,6 +190,9 @@ export async function getComparison(
 
   try {
     const newDocumentText = await getTextFromFile(file);
+    if (!newDocumentText || newDocumentText.length < 20) {
+       return { comparison: null, error: "Could not extract sufficient text from the second document." };
+    }
     const result = await compareDocuments({
       document1: originalDocumentText,
       document2: newDocumentText,

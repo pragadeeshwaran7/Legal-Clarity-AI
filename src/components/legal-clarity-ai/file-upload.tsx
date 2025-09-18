@@ -83,9 +83,9 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
                   <p className="mb-2 text-sm text-muted-foreground">
                     <span className="font-semibold">Click to upload</span> or drag and drop
                   </p>
-                  <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT files</p>
+                  <p className="text-xs text-muted-foreground">PDF, DOCX, TXT, PNG, or JPG files</p>
                 </div>
-                <input id="file-upload-input" name="file" ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt"/>
+                <input id="file-upload-input" name="file" ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt,.png,.jpg,.jpeg"/>
               </label>
             </div>
             {file && (

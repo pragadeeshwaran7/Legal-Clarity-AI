@@ -1,0 +1,51 @@
+diff --git a/node_modules/pdf-parse/index.js b/node_modules/pdf-parse/index.js
+index 443425f..b53027b 100644
+--- a/node_modules/pdf-parse/index.js
++++ b/node_modules/pdf-parse/index.js
+@@ -3,9 +3,6 @@
+ const path = require('path');
+ const { spawn } = require('child_process');
+ 
+-const local = path.join.bind(path, __dirname);
+-
+-
+ module.exports = async function(dataBuffer, options) {
+ 
+ 	let ret = {
+@@ -107,10 +104,5 @@ module.exports = async function(dataBuffer, options) {
+ 
+ 	ret.text = pages.map(page => page.text).join('\n');
+ 
+-	//for testing purposes
+-	if (process.argv.includes('--test-layout')) {
+-		let fs = require('fs');
+-		fs.writeFileSync('./test/data/05-versions-space.pdf.layout.txt', pdf_options.layout, {encoding: 'utf-8'});
+-	}
+ 	return ret;
+ };
+diff --git a/node_modules/pdf-parse/lib/pdf-parse.js b/node_modules/pdf-parse/lib/pdf-parse.js
+index ca2e12f..3f3b925 100644
+--- a/node_modules/pdf-parse/lib/pdf-parse.js
++++ b/node_modules/pdf-parse/lib/pdf-parse.js
+@@ -7,9 +7,6 @@
+ // see https://github.com/mozilla/pdf.js/blob/master/examples/node/getinfo.js
+ //
+ const path = require('path');
+-const local = path.join.bind(path, __dirname);
+-
+-
+ const pdfjs = require(local('../node_modules/pdfjs-dist/legacy/build/pdf.js'));
+ 
+ //
+@@ -100,10 +97,5 @@ async function PDF(dataBuffer, options) {
+ 
+ 		ret.text = pages.map(page => page.text).join('\n');
+ 
+-		//for testing purposes
+-		if (process.argv.includes('--test-layout')) {
+-			let fs = require('fs');
+-			fs.writeFileSync('./test/data/05-versions-space.pdf.layout.txt', pdf_options.layout, {encoding: 'utf-8'});
+-		}
+ 		return ret;
+ 	};
+ }
