@@ -7,10 +7,10 @@ import { simplifyLegalJargon } from "@/ai/flows/simplify-legal-jargon";
 import { compareDocuments } from "@/ai/flows/compare-documents";
 import { performOcr } from "@/ai/flows/perform-ocr";
 import { suggestAmendment } from "@/ai/flows/suggest-amendment";
+import { generateAudioSummary } from "@/ai/flows/generate-audio-summary";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
-
 
 const FileSchema = z.object({
   file: z
@@ -229,4 +229,34 @@ export async function getAmendment(formData: FormData): Promise<{
       error: "Failed to generate an amendment.",
     };
   }
+}
+
+const AudioSummarySchema = z.object({
+  text: z.string(),
+});
+
+export async function getAudioSummary(formData: FormData): Promise<{
+  audioDataUri: string | null;
+  error: string | null;
+}> {
+    const validatedFields = AudioSummarySchema.safeParse({
+        text: formData.get("text"),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            audioDataUri: null,
+            error: "Invalid text for audio summary.",
+        };
+    }
+    try {
+        const result = await generateAudioSummary(validatedFields.data);
+        return { ...result, error: null };
+    } catch (e) {
+        console.error(e);
+        return {
+            audioDataUri: null,
+            error: "Failed to generate an audio summary.",
+        };
+    }
 }

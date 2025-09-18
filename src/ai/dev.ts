@@ -8,3 +8,4 @@ import '@/ai/flows/analyze-legal-document.ts';
 import '@/ai/flows/compare-documents.ts';
 import '@/ai-flows/suggest-amendment.ts';
 import '@/ai/flows/perform-ocr.ts';
+import '@/ai/flows/generate-audio-summary.ts';

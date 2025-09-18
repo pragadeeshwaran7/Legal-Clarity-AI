@@ -22,6 +22,7 @@ import {
   ShieldQuestion,
   Loader2,
   Sparkles,
+  Volume2,
 } from "lucide-react";
 import {
   Dialog,
@@ -31,8 +32,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "../ui/button";
-import { getAmendment } from "@/app/actions";
+import { getAmendment, getAudioSummary } from "@/app/actions";
 import { Separator } from "../ui/separator";
+import { Alert, AlertDescription } from "../ui/alert";
 
 type RiskAssessmentSectionProps = Pick<
   AnalysisResult,
@@ -87,7 +89,12 @@ export function RiskAssessmentSection({
     explanation: string;
   } | null>(null);
   const [amendment, setAmendment] = useState<AmendmentSuggestion | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingAmendment, setIsLoadingAmendment] = useState(false);
+
+  const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+
 
   const handleSuggestAmendment = async (
     originalClause: string,
@@ -95,7 +102,7 @@ export function RiskAssessmentSection({
   ) => {
     setSelectedRisk({ clause: originalClause, explanation: riskExplanation });
     setIsDialogOpen(true);
-    setIsLoading(true);
+    setIsLoadingAmendment(true);
     setAmendment(null);
 
     const formData = new FormData();
@@ -104,7 +111,20 @@ export function RiskAssessmentSection({
 
     const result = await getAmendment(formData);
     setAmendment(result);
-    setIsLoading(false);
+    setIsLoadingAmendment(false);
+  };
+  
+  const handleGenerateAudio = async () => {
+    setIsLoadingAudio(true);
+    setAudioDataUri(null);
+    setAudioError(null);
+    const formData = new FormData();
+    formData.append("text", summary);
+
+    const result = await getAudioSummary(formData);
+    setAudioDataUri(result.audioDataUri);
+    setAudioError(result.error)
+    setIsLoadingAudio(false);
   };
 
   return (
@@ -117,6 +137,18 @@ export function RiskAssessmentSection({
           <CardContent>
             <p className="text-muted-foreground">{summary}</p>
           </CardContent>
+           <CardFooter className="flex-col items-start gap-4">
+            <Button onClick={handleGenerateAudio} disabled={isLoadingAudio} variant="outline" size="sm">
+              {isLoadingAudio ? <Loader2 className="animate-spin" /> : <Volume2 />}
+              Read Summary
+            </Button>
+            {audioError && <Alert variant="destructive"><AlertDescription>{audioError}</AlertDescription></Alert>}
+            {audioDataUri && (
+                <audio controls src={audioDataUri} className="w-full">
+                    Your browser does not support the audio element.
+                </audio>
+            )}
+          </CardFooter>
         </Card>
 
         <Card>
@@ -167,6 +199,7 @@ export function RiskAssessmentSection({
                           onClick={() =>
                             handleSuggestAmendment(risk.clause, risk.explanation)
                           }
+                          disabled={isLoadingAmendment}
                         >
                           <Sparkles className="mr-2 h-4 w-4" />
                           Suggest Amendment
@@ -209,7 +242,7 @@ export function RiskAssessmentSection({
             </div>
             <Separator />
 
-            {isLoading && (
+            {isLoadingAmendment && (
               <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mr-4" />
                 <p>Generating suggestion...</p>
