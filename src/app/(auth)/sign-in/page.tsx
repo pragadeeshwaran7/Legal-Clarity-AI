@@ -64,9 +64,9 @@ export default function SignInPage() {
   }
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
     <AppHeader />
-    <div className="flex flex-col items-center justify-center flex-grow px-4">
+    <main className="flex flex-col items-center justify-center flex-grow px-4">
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl font-headline">Sign In</CardTitle>
@@ -117,7 +117,7 @@ export default function SignInPage() {
           </p>
         </CardContent>
       </Card>
+    </main>
     </div>
-    </>
   );
 }

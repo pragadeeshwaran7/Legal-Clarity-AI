@@ -75,9 +75,9 @@ export default function SignUpPage() {
   }
 
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <AppHeader />
-      <div className="flex flex-col items-center justify-center flex-grow px-4">
+      <main className="flex flex-col items-center justify-center flex-grow px-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle className="text-2xl font-headline">Sign Up</CardTitle>
@@ -141,7 +141,7 @@ export default function SignUpPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
