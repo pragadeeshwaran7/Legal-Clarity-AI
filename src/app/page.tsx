@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
+import { AuthProvider } from '@/hooks/use-auth';
 
-export default function Home() {
+
+function HomeLogic() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -24,4 +26,12 @@ export default function Home() {
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
     </div>
   );
+}
+
+export default function Home() {
+    return (
+        <AuthProvider>
+            <HomeLogic />
+        </AuthProvider>
+    )
 }
