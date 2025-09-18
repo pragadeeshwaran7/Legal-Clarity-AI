@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, ChangeEvent, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useEffect, useRef, ChangeEvent, useState, useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import { FileUp, Loader2, ScanSearch, CheckCircle, XCircle } from "lucide-react";
 
 import { analyzeDocument } from "@/app/actions";
@@ -30,7 +30,7 @@ function SubmitButton({ file }: { file: File | null }) {
 }
 
 export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
-  const [state, formAction] = useFormState(analyzeDocument, {
+  const [state, formAction] = useActionState(analyzeDocument, {
     data: null,
     error: null,
     fileName: "",
