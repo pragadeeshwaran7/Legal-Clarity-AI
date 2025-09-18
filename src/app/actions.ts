@@ -9,7 +9,7 @@ import { performOcr } from "@/ai/flows/perform-ocr";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
-import pdf from "pdf-parse";
+
 
 const FileSchema = z.object({
   file: z
@@ -30,6 +30,7 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
+  const pdf = (await import('pdf-parse')).default;
   const data = await pdf(Buffer.from(buffer));
   // If the PDF has no text, it might be a scanned document.
   if (!data.text.trim()) {
@@ -65,7 +66,8 @@ async function getTextFromFile(file: File): Promise<string> {
     // If pdf-parse returns no text, assume it's a scanned PDF and run OCR
     if (!pdfText) {
       console.log("PDF contains no text. Attempting OCR...");
-      return getTextFromImage(buffer, "image/jpeg"); // Treat as image
+      // Using a common image type for OCR as pdf-parse doesn't know the internal image format
+      return getTextFromImage(buffer, "image/jpeg"); 
     }
     return pdfText;
   }
