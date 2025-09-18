@@ -30,13 +30,8 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
-  const pdf = (await import('pdf-parse')).default;
-  const data = await pdf(Buffer.from(buffer));
-  // If the PDF has no text, it might be a scanned document.
-  if (!data.text.trim()) {
-    return ""; // Return empty to signal it might be an image-only PDF
-  }
-  return data.text;
+  // Use OCR for all PDFs to handle both text-based and scanned documents.
+  return getTextFromImage(buffer, "application/pdf");
 }
 
 async function getTextFromImage(buffer: ArrayBuffer, mimeType: string): Promise<string> {
@@ -62,14 +57,7 @@ async function getTextFromFile(file: File): Promise<string> {
   }
 
   if (file.type === "application/pdf") {
-    const pdfText = await getTextFromPdf(buffer);
-    // If pdf-parse returns no text, assume it's a scanned PDF and run OCR
-    if (!pdfText) {
-      console.log("PDF contains no text. Attempting OCR...");
-      // Using a common image type for OCR as pdf-parse doesn't know the internal image format
-      return getTextFromImage(buffer, "image/jpeg"); 
-    }
-    return pdfText;
+    return getTextFromPdf(buffer);
   }
   
   return new TextDecoder().decode(buffer);
