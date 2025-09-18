@@ -1,59 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import type { AnalysisResult } from "@/lib/types";
-
-import { AppHeader } from "@/components/legal-clarity-ai/app-header";
-import { FileUpload } from "@/components/legal-clarity-ai/file-upload";
-import { AnalysisDisplay } from "@/components/legal-clarity-ai/analysis-display";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
+import { Loader2 } from 'lucide-react';
 
 export default function Home() {
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [documentText, setDocumentText] = useState<string>("");
-  const [fileName, setFileName] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [key, setKey] = useState(Date.now()); // Used to reset the component
+  const { user, loading } = useAuth();
+  const router = useRouter();
 
-  const handleAnalysisComplete = (result: AnalysisResult | null, text: string, name: string, error?: string | null) => {
-    if (result && text) {
-      setAnalysisResult(result);
-      setDocumentText(text);
-      setFileName(name);
-      setError(null);
-    } else {
-      setError(error || "Analysis failed. Please try again.");
-      setAnalysisResult(null);
-      setDocumentText("");
-      setFileName(name);
+  useEffect(() => {
+    if (!loading) {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/sign-in');
+      }
     }
-  };
-
-  const handleReset = () => {
-    setAnalysisResult(null);
-    setDocumentText("");
-    setFileName("");
-    setError(null);
-    setKey(Date.now()); // Change key to force re-mount of FileUpload
-  };
+  }, [user, loading, router]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <AppHeader />
-      <main className="flex-grow w-full max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {!analysisResult ? (
-          <FileUpload key={key} onAnalysisComplete={handleAnalysisComplete} />
-        ) : (
-          <AnalysisDisplay
-            analysisResult={analysisResult}
-            documentText={documentText}
-            fileName={fileName}
-            onReset={handleReset}
-          />
-        )}
-      </main>
-      <footer className="text-center p-4 text-sm text-muted-foreground no-print">
-        <p>Legal Clarity AI. Your AI-powered legal assistant.</p>
-      </footer>
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
     </div>
   );
 }
