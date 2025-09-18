@@ -6,6 +6,7 @@ import { answerDocumentQuestions } from "@/ai/flows/answer-document-questions";
 import { simplifyLegalJargon } from "@/ai/flows/simplify-legal-jargon";
 import { compareDocuments } from "@/ai/flows/compare-documents";
 import { performOcr } from "@/ai/flows/perform-ocr";
+import { suggestAmendment } from "@/ai/flows/suggest-amendment";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
@@ -191,5 +192,41 @@ export async function getComparison(
   } catch (e) {
     console.error(e);
     return { comparison: null, error: "Failed to compare documents." };
+  }
+}
+
+
+const AmendmentSchema = z.object({
+  originalClause: z.string(),
+  riskExplanation: z.string(),
+});
+
+export async function getAmendment(formData: FormData): Promise<{
+  suggestedAmendment: string | null;
+  explanation: string | null;
+  error: string | null;
+}> {
+  const validatedFields = AmendmentSchema.safeParse({
+    originalClause: formData.get("originalClause"),
+    riskExplanation: formData.get("riskExplanation"),
+  });
+
+  if (!validatedFields.success) {
+    return {
+      suggestedAmendment: null,
+      explanation: null,
+      error: "Invalid data for amendment.",
+    };
+  }
+  try {
+    const result = await suggestAmendment(validatedFields.data);
+    return { ...result, error: null };
+  } catch (e) {
+    console.error(e);
+    return {
+      suggestedAmendment: null,
+      explanation: null,
+      error: "Failed to generate an amendment.",
+    };
   }
 }
