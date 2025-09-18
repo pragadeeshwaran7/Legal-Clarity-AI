@@ -30,7 +30,7 @@ function SubmitButton({ file }: { file: File | null }) {
 }
 
 export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
-  const [state, formAction] = useActionState(analyzeDocument, {
+  const [state, formAction, isPending] = useActionState(analyzeDocument, {
     data: null,
     error: null,
     fileName: "",
