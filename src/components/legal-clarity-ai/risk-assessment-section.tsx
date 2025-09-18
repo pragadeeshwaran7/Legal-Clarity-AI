@@ -52,19 +52,19 @@ function RiskBadge({ riskLevel }: { riskLevel: "Low" | "Medium" | "High" }) {
     Low: {
       variant: "secondary",
       className:
-        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 border-green-300",
+        "bg-green-100/10 text-green-400 border-green-400/20",
       icon: <ShieldCheck className="mr-1 h-3.5 w-3.5" />,
     },
     Medium: {
       variant: "secondary",
       className:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 border-yellow-300",
+        "bg-yellow-100/10 text-yellow-400 border-yellow-400/20",
       icon: <ShieldQuestion className="mr-1 h-3.5 w-3.5" />,
     },
     High: {
       variant: "destructive",
       className:
-        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300",
+        "bg-red-100/10 text-red-400 border-red-400/20",
       icon: <ShieldAlert className="mr-1 h-3.5 w-3.5" />,
     },
   };
