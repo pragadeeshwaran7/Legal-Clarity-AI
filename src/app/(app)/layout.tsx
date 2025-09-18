@@ -23,13 +23,12 @@ import {
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/legal-clarity-ai/app-header";
 import { UserProfileButton } from "@/components/legal-clarity-ai/user-profile-button";
-import { AuthProvider } from "@/hooks/use-auth";
+import { Providers } from "@/app/providers";
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
-      <SidebarProvider>
+    <Providers>
         <Sidebar>
           <SidebarHeader>
             <div className="flex items-center gap-2">
@@ -68,7 +67,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </footer>
           </div>
         </SidebarInset>
-      </SidebarProvider>
-    </AuthProvider>
+    </Providers>
   );
 }
