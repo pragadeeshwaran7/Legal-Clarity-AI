@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type FileUploadProps = {
-  onAnalysisComplete: (result: AnalysisResult | null, text: string, name: string) => void;
+  onAnalysisComplete: (result: AnalysisResult | null, text: string, name: string, error?: string | null) => void;
 };
 
 function SubmitButton({ file }: { file: File | null }) {
@@ -34,6 +34,7 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
     data: null,
     error: null,
     fileName: "",
+    documentText: "",
   });
   const [file, setFile] = useState<File | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -41,8 +42,8 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
 
 
   useEffect(() => {
-    if (state.data) {
-      onAnalysisComplete(state.data, state.data.summary, state.fileName);
+    if (state.data || state.error) {
+      onAnalysisComplete(state.data, state.documentText, state.fileName, state.error);
     }
   }, [state, onAnalysisComplete]);
 
@@ -70,7 +71,6 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
       </CardHeader>
       <CardContent>
         <form ref={formRef} action={formAction} className="space-y-6">
-           <input type="hidden" name="documentText" value="" />
           <div className="space-y-2">
             <Label htmlFor="file-upload">Upload Document</Label>
             <div className="flex items-center justify-center w-full">

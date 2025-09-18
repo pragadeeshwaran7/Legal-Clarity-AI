@@ -19,6 +19,7 @@ type FormState = {
   data: AnalysisResult | null;
   error: string | null;
   fileName: string;
+  documentText: string;
 };
 
 async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
@@ -59,17 +60,20 @@ export async function analyzeDocument(
         validatedFields.error.flatten().fieldErrors.file?.join(", ") ??
         "Invalid input.",
       fileName: "",
+      documentText: "",
     };
   }
   const { file } = validatedFields.data;
 
+  let documentText = "";
   try {
-    const documentText = await getTextFromFile(file);
+    documentText = await getTextFromFile(file);
     if (documentText.length < 50) {
       return {
         data: null,
         error: "Document text must be at least 50 characters long.",
         fileName: file.name,
+        documentText: "",
       }
     }
 
@@ -91,6 +95,7 @@ export async function analyzeDocument(
       },
       error: null,
       fileName: file.name,
+      documentText,
     };
   } catch (e) {
     console.error(e);
@@ -99,7 +104,8 @@ export async function analyzeDocument(
     return {
       data: null,
       error: `Analysis failed: ${errorMessage}`,
-      fileName: file.name
+      fileName: file.name,
+      documentText: "",
     };
   }
 }

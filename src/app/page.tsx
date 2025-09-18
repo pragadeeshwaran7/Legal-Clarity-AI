@@ -14,14 +14,17 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(Date.now()); // Used to reset the component
 
-  const handleAnalysisComplete = (result: AnalysisResult | null, text: string, name: string) => {
-    if (result) {
+  const handleAnalysisComplete = (result: AnalysisResult | null, text: string, name: string, error?: string | null) => {
+    if (result && text) {
       setAnalysisResult(result);
       setDocumentText(text);
       setFileName(name);
       setError(null);
     } else {
-      setError("Analysis failed. Please try again.");
+      setError(error || "Analysis failed. Please try again.");
+      setAnalysisResult(null);
+      setDocumentText("");
+      setFileName(name);
     }
   };
 
