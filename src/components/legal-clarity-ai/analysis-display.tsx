@@ -1,39 +1,33 @@
 "use client";
 
-import { useState } from "react";
 import {
   FileText,
   MessageCircle,
   Printer,
   RotateCcw,
   ScanSearch,
+  Users,
 } from "lucide-react";
 
-import type { AnalysisResult, QAMessage } from "@/lib/types";
+import type { AnalysisResult } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { getAnswer, getSimplified } from "@/app/actions";
 import { RiskAssessmentSection } from "./risk-assessment-section";
 import { QandASection } from "./q-and-a-section";
 import { SimplifiedViewSection } from "./simplified-view-section";
+import { ComparisonSection } from "./comparison-section";
 
 type AnalysisDisplayProps = {
   analysisResult: AnalysisResult;
   documentText: string;
+  fileName: string;
   onReset: () => void;
 };
 
 export function AnalysisDisplay({
   analysisResult,
   documentText,
+  fileName,
   onReset,
 }: AnalysisDisplayProps) {
   const handlePrint = () => {
@@ -46,7 +40,7 @@ export function AnalysisDisplay({
         <div>
           <h2 className="text-3xl font-bold font-headline">Analysis Complete</h2>
           <p className="text-muted-foreground">
-            Review your document's summary, risks, and ask questions.
+            {fileName ? `Showing results for ${fileName}.` : "Review your document's summary, risks, and ask questions."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -62,7 +56,7 @@ export function AnalysisDisplay({
       </div>
 
       <Tabs defaultValue="summary" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 no-print">
+        <TabsList className="grid w-full grid-cols-4 no-print">
           <TabsTrigger value="summary">
             <ScanSearch className="mr-2" />
             Summary & Risks
@@ -74,6 +68,10 @@ export function AnalysisDisplay({
           <TabsTrigger value="simplified">
             <FileText className="mr-2" />
             Simplified View
+          </TabsTrigger>
+          <TabsTrigger value="compare">
+            <Users className="mr-2" />
+            Compare
           </TabsTrigger>
         </TabsList>
 
@@ -91,6 +89,9 @@ export function AnalysisDisplay({
           </TabsContent>
           <TabsContent value="simplified" className="mt-6">
             <SimplifiedViewSection documentText={documentText} />
+          </TabsContent>
+          <TabsContent value="compare" className="mt-6">
+            <ComparisonSection originalDocumentText={documentText} />
           </TabsContent>
         </div>
       </Tabs>

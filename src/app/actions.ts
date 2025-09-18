@@ -4,36 +4,75 @@ import { analyzeLegalDocument } from "@/ai/flows/analyze-legal-document";
 import { assessDocumentRisk } from "@/ai/flows/assess-document-risk";
 import { answerDocumentQuestions } from "@/ai/flows/answer-document-questions";
 import { simplifyLegalJargon } from "@/ai/flows/simplify-legal-jargon";
+import { compareDocuments } from "@/ai/flows/compare-documents";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
+import mammoth from "mammoth";
 
-const DocumentSchema = z.object({
-  documentText: z.string().min(50, "Document text must be at least 50 characters long."),
+const FileSchema = z.object({
+  file: z
+    .instanceof(File)
+    .refine((file) => file.size > 0, { message: "File cannot be empty." }),
 });
 
 type FormState = {
   data: AnalysisResult | null;
   error: string | null;
+  fileName: string;
 };
+
+async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
+  const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+  return result.value;
+}
+
+async function getTextFromFile(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  if (file.type === "application/pdf") {
+    // PDF parsing is complex and would require a dedicated library.
+    // For this example, we'll return a placeholder.
+    // In a real app, you might use a service or a library like 'pdf-parse'.
+    console.warn("PDF parsing is not fully implemented. Using placeholder text.");
+    return `This is a placeholder for the content of the PDF file named ${file.name}. True PDF text extraction requires a library like 'pdf-parse' on the server.`;
+  }
+  if (
+    file.type ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  ) {
+    return getTextFromDocx(buffer);
+  }
+  return new TextDecoder().decode(buffer);
+}
 
 export async function analyzeDocument(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const validatedFields = DocumentSchema.safeParse({
-    documentText: formData.get("documentText"),
+  const validatedFields = FileSchema.safeParse({
+    file: formData.get("file"),
   });
 
   if (!validatedFields.success) {
     return {
       data: null,
-      error: validatedFields.error.flatten().fieldErrors.documentText?.join(", ") ?? "Invalid input.",
+      error:
+        validatedFields.error.flatten().fieldErrors.file?.join(", ") ??
+        "Invalid input.",
+      fileName: "",
     };
   }
-
-  const { documentText } = validatedFields.data;
+  const { file } = validatedFields.data;
 
   try {
+    const documentText = await getTextFromFile(file);
+    if (documentText.length < 50) {
+      return {
+        data: null,
+        error: "Document text must be at least 50 characters long.",
+        fileName: file.name,
+      }
+    }
+
     const [analysis, riskDetails] = await Promise.all([
       analyzeLegalDocument({ documentText }),
       assessDocumentRisk({ documentText }),
@@ -51,13 +90,16 @@ export async function analyzeDocument(
         detailedRisks: riskDetails,
       },
       error: null,
+      fileName: file.name,
     };
   } catch (e) {
     console.error(e);
-    const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during analysis.";
+    const errorMessage =
+      e instanceof Error ? e.message : "An unknown error occurred during analysis.";
     return {
       data: null,
       error: `Analysis failed: ${errorMessage}`,
+      fileName: file.name
     };
   }
 }
@@ -90,5 +132,37 @@ export async function getSimplified(
       simplifiedText: null,
       error: "Failed to simplify the document.",
     };
+  }
+}
+
+const CompareSchema = z.object({
+  originalDocumentText: z.string(),
+  file: z.instanceof(File),
+});
+
+export async function getComparison(
+  formData: FormData
+): Promise<{ comparison: string | null; error: string | null }> {
+  const validatedFields = CompareSchema.safeParse({
+    originalDocumentText: formData.get("originalDocumentText"),
+    file: formData.get("file"),
+  });
+
+  if (!validatedFields.success) {
+    return { comparison: null, error: "Invalid data for comparison." };
+  }
+
+  const { originalDocumentText, file } = validatedFields.data;
+
+  try {
+    const newDocumentText = await getTextFromFile(file);
+    const result = await compareDocuments({
+      document1: originalDocumentText,
+      document2: newDocumentText,
+    });
+    return { comparison: result.comparison, error: null };
+  } catch (e) {
+    console.error(e);
+    return { comparison: null, error: "Failed to compare documents." };
   }
 }

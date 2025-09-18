@@ -10,13 +10,15 @@ import { AnalysisDisplay } from "@/components/legal-clarity-ai/analysis-display"
 export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [documentText, setDocumentText] = useState<string>("");
+  const [fileName, setFileName] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(Date.now()); // Used to reset the component
 
-  const handleAnalysisComplete = (result: AnalysisResult | null, text: string) => {
+  const handleAnalysisComplete = (result: AnalysisResult | null, text: string, name: string) => {
     if (result) {
       setAnalysisResult(result);
       setDocumentText(text);
+      setFileName(name);
       setError(null);
     } else {
       setError("Analysis failed. Please try again.");
@@ -26,6 +28,7 @@ export default function Home() {
   const handleReset = () => {
     setAnalysisResult(null);
     setDocumentText("");
+    setFileName("");
     setError(null);
     setKey(Date.now()); // Change key to force re-mount of FileUpload
   };
@@ -40,6 +43,7 @@ export default function Home() {
           <AnalysisDisplay
             analysisResult={analysisResult}
             documentText={documentText}
+            fileName={fileName}
             onReset={handleReset}
           />
         )}
