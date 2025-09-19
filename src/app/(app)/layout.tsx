@@ -22,7 +22,6 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/legal-clarity-ai/app-header";
-import { UserProfileButton } from "@/components/legal-clarity-ai/user-profile-button";
 import { Providers } from "@/app/providers";
 
 
@@ -53,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
-            <UserProfileButton />
+            {/* UserProfileButton removed */}
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
