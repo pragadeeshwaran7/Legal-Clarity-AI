@@ -10,7 +10,6 @@ import {
   History,
 } from "lucide-react";
 import {
-  SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarTrigger,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/legal-clarity-ai/app-header";
 import { Providers } from "@/app/providers";
+import { UserProfileButton } from "@/components/legal-clarity-ai/user-profile-button";
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -52,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter>
-            {/* UserProfileButton removed */}
+            <UserProfileButton />
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>

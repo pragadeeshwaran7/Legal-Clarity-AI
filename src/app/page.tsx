@@ -3,18 +3,33 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useAuth, AuthProvider } from '@/hooks/use-auth';
 
-export default function Home() {
+function HomeLogic() {
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/dashboard');
-  }, [router]);
+    if (!loading) {
+      if (user) {
+        router.replace('/dashboard');
+      } else {
+        router.replace('/sign-in');
+      }
+    }
+  }, [user, loading, router]);
 
-  // While loading, show a spinner to prevent flicker
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <AuthProvider>
+      <HomeLogic />
+    </AuthProvider>
   );
 }
