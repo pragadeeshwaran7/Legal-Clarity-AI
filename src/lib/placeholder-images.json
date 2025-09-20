@@ -6,6 +6,12 @@
       "description": "A modern and professional legal setting.",
       "imageUrl": "https://picsum.photos/seed/legalhero/1200/400",
       "imageHint": "lawyer office"
+    },
+    {
+      "id": "auth-image",
+      "description": "An abstract image representing security and data.",
+      "imageUrl": "https://picsum.photos/seed/authsecure/600/600",
+      "imageHint": "security abstract"
     }
   ]
 }
