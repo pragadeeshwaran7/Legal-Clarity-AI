@@ -15,7 +15,8 @@ import {
   User,
   Auth,
 } from "firebase/auth";
-import { getClientFirebase } from "@/lib/firebase";
+import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { Loader2 } from "lucide-react";
 
 interface AuthContextType {
@@ -28,6 +29,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Moved this to a separate function to avoid re-declaration
+function getClientAuth() {
+  const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+
+  if (!getApps().length) {
+    const app = initializeApp(firebaseConfig);
+    return getAuth(app);
+  } else {
+    const app = getApp();
+    return getAuth(app);
+  }
+}
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,26 +56,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
-    const { auth: firebaseAuth } = getClientFirebase();
+    // This code now only runs on the client
+    const firebaseAuth = getClientAuth();
     setAuth(firebaseAuth);
 
-    if (firebaseAuth) {
-        const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-            setUser(user);
-            setLoading(false);
-        });
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
 
-        return () => unsubscribe();
-    } else {
-        // If we're on the server, we're not loading and there's no user.
-        setLoading(false);
-    }
+    return () => unsubscribe();
   }, []);
 
   const signInWithGoogle = async () => {
     if (!auth) {
-        setError("Firebase Auth is not initialized.");
-        return null;
+      setError("Firebase Auth is not initialized.");
+      return null;
     }
     setLoading(true);
     setError(null);
@@ -65,7 +82,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return result.user;
     } catch (e: any) {
       console.error(e);
-      setError(e.message);
+      // Make sure we have a useful error message
+      if (e.code === 'auth/popup-closed-by-user') {
+        setError('Sign-in process was cancelled.');
+      } else {
+        setError(e.message);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -74,8 +96,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signOut = async () => {
     if (!auth) {
-        setError("Firebase Auth is not initialized.");
-        return;
+      setError("Firebase Auth is not initialized.");
+      return;
     }
     setLoading(true);
     try {
@@ -90,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const value = { user, loading, error, signInWithGoogle, signOut };
-  
+
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
