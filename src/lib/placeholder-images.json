@@ -1,3 +1,11 @@
+
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-image",
+      "description": "A modern and professional legal setting.",
+      "imageUrl": "https://picsum.photos/seed/legalhero/1200/400",
+      "imageHint": "lawyer office"
+    }
+  ]
 }
