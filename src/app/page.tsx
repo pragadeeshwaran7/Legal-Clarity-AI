@@ -3,21 +3,14 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/hooks/use-auth';
 
 export default function Home() {
-  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/sign-in');
-      }
-    }
-  }, [user, loading, router]);
+    // Directly redirect to the sign-in page which is now our demo entry.
+    router.replace('/sign-in');
+  }, [router]);
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
