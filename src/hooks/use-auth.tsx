@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -14,9 +15,9 @@ import {
   signInWithPopup,
   User,
   Auth,
+  getAuth,
 } from "firebase/auth";
-import { getAuth } from "firebase/auth";
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { Loader2 } from "lucide-react";
 
 interface AuthContextType {
@@ -29,26 +30,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Moved this to a separate function to avoid re-declaration
-function getClientAuth() {
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
-
-  if (!getApps().length) {
-    const app = initializeApp(firebaseConfig);
-    return getAuth(app);
-  } else {
-    const app = getApp();
-    return getAuth(app);
-  }
-}
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,16 +37,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
-    // This code now only runs on the client
-    const firebaseAuth = getClientAuth();
-    setAuth(firebaseAuth);
+    try {
+      const firebaseConfig = {
+        apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+        authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      };
 
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
+      if (!firebaseConfig.apiKey) {
+          throw new Error("Firebase API Key is missing. Please check your environment variables.");
+      }
 
-    return () => unsubscribe();
+      const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+      const firebaseAuth = getAuth(app);
+      setAuth(firebaseAuth);
+
+      const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+        setUser(user);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    } catch (e: any) {
+        console.error("Firebase initialization error:", e);
+        setError(e.message);
+        setLoading(false);
+    }
   }, []);
 
   const signInWithGoogle = async () => {
@@ -82,7 +82,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return result.user;
     } catch (e: any) {
       console.error(e);
-      // Make sure we have a useful error message
       if (e.code === 'auth/popup-closed-by-user') {
         setError('Sign-in process was cancelled.');
       } else {
