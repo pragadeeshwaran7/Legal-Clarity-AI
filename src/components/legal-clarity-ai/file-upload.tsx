@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/hooks/use-auth";
 
 type FileUploadProps = {
   onAnalysisComplete: (result: AnalysisResult | null, text: string, name: string, error?: string | null) => void;
@@ -31,6 +32,7 @@ function SubmitButton({ file }: { file: File | null }) {
 }
 
 export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
+  const { user } = useAuth();
   const [state, formAction, isPending] = useActionState(analyzeDocument, {
     data: null,
     error: null,
@@ -61,6 +63,13 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
     }
   }
 
+  const handleFormAction = (formData: FormData) => {
+    if (user) {
+        formData.append("userId", user.uid);
+    }
+    formAction(formData);
+  }
+
 
   return (
     <Card className="w-full max-w-3xl mx-auto shadow-lg border-2 border-primary/20 bg-card/80 backdrop-blur-sm">
@@ -71,7 +80,7 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form ref={formRef} action={formAction} className="space-y-6">
+        <form ref={formRef} action={handleFormAction} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="file-upload" className="sr-only">Upload Document</Label>
             <div className="flex items-center justify-center w-full">

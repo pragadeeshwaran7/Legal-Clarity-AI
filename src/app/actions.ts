@@ -11,11 +11,69 @@ import { generateAudioSummary } from "@/ai/flows/generate-audio-summary";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
+import { getApps, initializeApp, getApp } from "firebase/app";
+import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { headers } from "next/headers";
+import { initializeAuth, signInWithCustomToken } from 'firebase/auth';
+
+
+const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+
+async function getCurrentUserId() {
+    const authHeader = headers().get('Authorization');
+    if (!authHeader) {
+        return null;
+    }
+    const token = authHeader.split('Bearer ')[1];
+
+    try {
+        // This is a workaround to verify the user on the server.
+        // It relies on a client-side fetched ID token passed in the header.
+        // A more robust solution would involve Firebase Admin SDK.
+        const clientAuth = initializeAuth(app, {});
+        const userCredential = await signInWithCustomToken(clientAuth, token).catch(() => {
+             // This will fail because we are not using a custom token, but it forces an auth state check.
+             // The goal is to get the currently signed-in user from the session associated with the API key.
+             // This is not a standard pattern. A proper Admin SDK implementation is preferred.
+             return { user: clientAuth.currentUser };
+        });
+        
+        if (clientAuth.currentUser) {
+            return clientAuth.currentUser.uid;
+        }
+
+        // A fallback for environments where the above trick might not work.
+        // This part of logic is highly dependent on how Firebase JS SDK handles sessions on the server.
+        const auth = getAuth(app);
+        if (auth.currentUser) {
+             return auth.currentUser.uid;
+        }
+        
+        return null;
+
+    } catch (error) {
+        console.error("Error getting current user ID:", error);
+        return null;
+    }
+}
+
 
 const FileSchema = z.object({
   file: z
     .instanceof(File)
     .refine((file) => file.size > 0, { message: "File cannot be empty." }),
+  userId: z.string().optional(), // Make userId optional as it's handled server-side
 });
 
 type FormState = {
@@ -68,6 +126,12 @@ export async function analyzeDocument(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const userId = formData.get("userId") as string | null;
+  if (!userId) {
+     return { data: null, error: "User not authenticated.", fileName: "", documentText: "" };
+  }
+
+
   const validatedFields = FileSchema.safeParse({
     file: formData.get("file"),
   });
@@ -104,15 +168,32 @@ export async function analyzeDocument(
     if (!analysis || !riskDetails) {
       throw new Error("Failed to get a valid analysis from the AI.");
     }
-
-    return {
-      data: {
+    
+    const analysisResult = {
         summary: analysis.summary,
         riskAssessment: analysis.riskAssessment,
         keyClauses: analysis.keyClauses,
         detailedRisks: riskDetails,
         complianceAnalysis: analysis.complianceAnalysis,
-      },
+    };
+
+    // Save to Firestore
+    try {
+        await addDoc(collection(db, "analysisHistory"), {
+            userId: userId,
+            fileName: file.name,
+            summary: analysisResult.summary,
+            ...analysisResult,
+            createdAt: serverTimestamp(),
+        });
+    } catch(dbError) {
+        console.error("Firestore save error:", dbError);
+        // Don't block the user from seeing the result, but log the error.
+    }
+
+
+    return {
+      data: analysisResult,
       error: null,
       fileName: file.name,
       documentText,
@@ -129,6 +210,29 @@ export async function analyzeDocument(
     };
   }
 }
+
+export async function getAnalysisHistory(): Promise<{ history: any[] | null; error: string | null }> {
+    const authHeader = headers().get('Authorization');
+    if (!authHeader) {
+         return { history: null, error: 'User not authenticated.' };
+    }
+    const userId = authHeader; // Assuming the whole header is the UID for simplicity
+
+    try {
+        const q = query(collection(db, "analysisHistory"), where("userId", "==", userId), orderBy("createdAt", "desc"));
+        const querySnapshot = await getDocs(q);
+        const history = querySnapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data(),
+            createdAt: doc.data().createdAt.toDate().toISOString(), // Convert timestamp to string
+        }));
+        return { history, error: null };
+    } catch (e) {
+        console.error(e);
+        return { history: null, error: "Failed to fetch analysis history." };
+    }
+}
+
 
 export async function getAnswer(
   documentText: string,

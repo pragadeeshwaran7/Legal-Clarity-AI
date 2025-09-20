@@ -1,4 +1,5 @@
 
+
 import { AppHeader } from "@/components/legal-clarity-ai/app-header";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {

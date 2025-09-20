@@ -7,6 +7,7 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useCallback,
 } from "react";
 import {
   onAuthStateChanged,
@@ -26,6 +27,7 @@ interface AuthContextType {
   error: string | null;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  getIdToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,10 +111,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
-  
-  const value = { user, loading, error, signInWithGoogle, signOut };
 
-  if (loading && !user) {
+  const getIdToken = useCallback(async () => {
+    if (!user) return null;
+    try {
+      const token = await user.getIdToken();
+      return token;
+    } catch (error) {
+      console.error("Error getting ID token:", error);
+      return null;
+    }
+  }, [user]);
+  
+  const value = { user, loading, error, signInWithGoogle, signOut, getIdToken };
+
+  if (loading && !auth) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
