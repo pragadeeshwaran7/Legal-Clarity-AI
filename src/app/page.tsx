@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { useAuth, AuthProvider } from '@/hooks/use-auth';
+import { useAuth } from '@/hooks/use-auth';
+import { Providers } from './providers';
 
 function HomeLogic() {
   const { user, loading } = useAuth();
@@ -19,22 +20,17 @@ function HomeLogic() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Render nothing while redirecting
-  return null;
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+    </div>
+  );
 }
 
 export default function Home() {
   return (
-    <AuthProvider>
+    <Providers>
       <HomeLogic />
-    </AuthProvider>
+    </Providers>
   );
 }
