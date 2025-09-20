@@ -1,4 +1,3 @@
-// src/app/providers.tsx
 "use client";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
