@@ -12,8 +12,7 @@ import {
   onAuthStateChanged,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   User,
   Auth,
   getAuth,
@@ -60,21 +59,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(user);
         setLoading(false);
       });
-      
-      // Check for redirect result
-      getRedirectResult(firebaseAuth)
-        .then((result) => {
-          if (result) {
-            setUser(result.user);
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-          setError(e.message);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
 
       return () => unsubscribe();
     } catch (e: any) {
@@ -93,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (e: any) {
       console.error(e);
       if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
