@@ -12,7 +12,8 @@ import {
   onAuthStateChanged,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   User,
   Auth,
   getAuth,
@@ -24,7 +25,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  signInWithGoogle: () => Promise<User | null>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       if (!firebaseConfig.apiKey) {
-          throw new Error("Firebase API Key is missing. Please check your environment variables.");
+        throw new Error("Firebase API Key is missing. Please check your environment variables.");
       }
 
       const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -59,36 +60,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(user);
         setLoading(false);
       });
+      
+      // Check for redirect result
+      getRedirectResult(firebaseAuth)
+        .then((result) => {
+          if (result) {
+            setUser(result.user);
+          }
+        })
+        .catch((e) => {
+          console.error(e);
+          setError(e.message);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
 
       return () => unsubscribe();
     } catch (e: any) {
-        console.error("Firebase initialization error:", e);
-        setError(e.message);
-        setLoading(false);
+      console.error("Firebase initialization error:", e);
+      setError(e.message);
+      setLoading(false);
     }
   }, []);
 
   const signInWithGoogle = async () => {
     if (!auth) {
       setError("Firebase Auth is not initialized.");
-      return null;
+      return;
     }
     setLoading(true);
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      setUser(result.user);
-      return result.user;
+      await signInWithRedirect(auth, provider);
     } catch (e: any) {
       console.error(e);
-      if (e.code === 'auth/popup-closed-by-user') {
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
         setError('Sign-in process was cancelled.');
-      } else {
+      } else if (e.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by the browser. Please allow popups for this site.');
+      }
+      else {
         setError(e.message);
       }
-      return null;
-    } finally {
       setLoading(false);
     }
   };
@@ -102,24 +117,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await firebaseSignOut(auth);
       setUser(null);
-    } catch (e: any) {
+    } catch (e: any)
+    {
       console.error(e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
   };
-
+  
   const value = { user, loading, error, signInWithGoogle, signOut };
 
-  if (loading) {
+  if (loading && !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
-
+  
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

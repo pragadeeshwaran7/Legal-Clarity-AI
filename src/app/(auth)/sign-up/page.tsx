@@ -13,6 +13,7 @@ import { Scale, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
+import { useEffect } from "react";
 
 
 function GoogleIcon() {
@@ -28,13 +29,17 @@ function GoogleIcon() {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signInWithGoogle, error, loading } = useAuth();
-
-  const handleGoogleSignIn = async () => {
-    const user = await signInWithGoogle();
+  const { user, signInWithGoogle, error, loading } = useAuth();
+  
+  useEffect(() => {
     if (user) {
       router.push("/dashboard");
     }
+  }, [user, router]);
+
+
+  const handleGoogleSignIn = async () => {
+    await signInWithGoogle();
   };
 
   return (
