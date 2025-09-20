@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 
 function UserProfileButton() {
@@ -77,6 +77,7 @@ function UserProfileButton() {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -91,6 +92,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  
+  const isDashboardActive = pathname.startsWith('/dashboard');
+  const isHistoryActive = pathname.startsWith('/history');
 
   return (
     <SidebarProvider>
@@ -104,13 +108,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/dashboard" isActive={true}>
+              <SidebarMenuButton href="/dashboard" isActive={isDashboardActive}>
                 <HomeIcon />
                 Dashboard
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton href="/history">
+              <SidebarMenuButton href="/history" isActive={isHistoryActive}>
                 <History />
                 History
               </SidebarMenuButton>

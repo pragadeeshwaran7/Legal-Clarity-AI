@@ -1,3 +1,4 @@
+
 "use server";
 
 import { analyzeLegalDocument } from "@/ai/flows/analyze-legal-document";
@@ -12,7 +13,7 @@ import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
 import { getApps, initializeApp, getApp } from "firebase/app";
-import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp } from "firebase/firestore";
+import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { headers } from "next/headers";
 import { initializeAuth, signInWithCustomToken } from 'firebase/auth';
@@ -183,6 +184,7 @@ export async function analyzeDocument(
             userId: userId,
             fileName: file.name,
             summary: analysisResult.summary,
+            documentText: documentText,
             ...analysisResult,
             createdAt: serverTimestamp(),
         });
@@ -230,6 +232,42 @@ export async function getAnalysisHistory(): Promise<{ history: any[] | null; err
     } catch (e) {
         console.error(e);
         return { history: null, error: "Failed to fetch analysis history." };
+    }
+}
+
+export async function getAnalysisById(id: string): Promise<{ data: any | null; error: string | null }> {
+    const authHeader = headers().get('Authorization');
+    if (!authHeader) {
+         return { data: null, error: 'User not authenticated.' };
+    }
+    const userId = authHeader; // Assuming the whole header is the UID for simplicity
+
+    try {
+        const docRef = doc(db, "analysisHistory", id);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            return { data: null, error: "Analysis not found." };
+        }
+
+        const data = docSnap.data();
+
+        // Security check: ensure the document belongs to the requesting user
+        if (data.userId !== userId) {
+            return { data: null, error: "You are not authorized to view this analysis." };
+        }
+        
+        return { 
+            data: {
+                id: docSnap.id,
+                ...data,
+                createdAt: data.createdAt.toDate().toISOString(),
+            }, 
+            error: null 
+        };
+    } catch (e) {
+        console.error(e);
+        return { data: null, error: "Failed to fetch analysis details." };
     }
 }
 

@@ -3,13 +3,12 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Scale, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
@@ -43,20 +42,20 @@ export default function SignUpPage() {
   };
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="text-center">
-        <Scale className="mx-auto h-12 w-12 text-primary" />
-        <CardTitle className="text-2xl font-headline mt-4">Create an Account</CardTitle>
-        <CardDescription>
+    <>
+      <CardHeader className="text-center p-0 mb-6">
+        <CardTitle className="text-3xl font-headline font-bold">Create an Account</CardTitle>
+        <CardDescription className="pt-2">
           Get started by signing up with your Google account.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 p-0">
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         <Button
-          className="w-full"
+          className="w-full h-12 text-base"
           onClick={handleGoogleSignIn}
           disabled={loading}
+          size="lg"
         >
           {loading ? (
              <Loader2 className="animate-spin" />
@@ -67,10 +66,10 @@ export default function SignUpPage() {
             </>
           )}
         </Button>
-         <CardDescription className="text-center">
-            Already have an account? <Link href="/sign-in" className="text-primary hover:underline">Sign In</Link>
+         <CardDescription className="text-center !mt-6">
+            Already have an account? <Link href="/sign-in" className="font-semibold text-primary hover:underline">Sign In</Link>
         </CardDescription>
       </CardContent>
-    </Card>
+    </>
   );
 }

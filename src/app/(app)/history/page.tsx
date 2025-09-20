@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { getAnalysisHistory } from "@/app/actions";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
 
 type AnalysisHistoryItem = {
   id: string;
@@ -35,7 +36,6 @@ export default function HistoryPage() {
       } else if (fetchedHistory) {
         setHistory(fetchedHistory.map(item => ({
             ...item,
-            // Ensure createdAt is a string for display
             createdAt: new Date(item.createdAt).toLocaleString()
         })));
       }
@@ -53,7 +53,7 @@ export default function HistoryPage() {
           Analysis History
         </h1>
         <p className="text-muted-foreground mt-2">
-          Review your previously analyzed documents.
+          Review your previously analyzed documents. Click on any item to see the full analysis.
         </p>
       </div>
 
@@ -84,19 +84,21 @@ export default function HistoryPage() {
       {!isLoading && history.length > 0 && (
         <div className="space-y-4">
           {history.map((item) => (
-            <Card key={item.id} className="hover:bg-muted/50 transition-colors">
-              <CardHeader>
-                <CardTitle className="text-lg">{item.fileName}</CardTitle>
-                <CardDescription>
-                  Analyzed on {item.createdAt}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {item.summary}
-                </p>
-              </CardContent>
-            </Card>
+            <Link href={`/history/${item.id}`} key={item.id} className="block">
+                <Card className="hover:border-primary/50 hover:bg-muted/50 transition-all">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{item.fileName}</CardTitle>
+                    <CardDescription>
+                      Analyzed on {item.createdAt}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {item.summary}
+                    </p>
+                  </CardContent>
+                </Card>
+            </Link>
           ))}
         </div>
       )}
