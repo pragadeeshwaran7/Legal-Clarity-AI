@@ -8,6 +8,8 @@ import {
   PanelLeft,
   Home as HomeIcon,
   History,
+  LogOut,
+  User,
 } from "lucide-react";
 import {
   Sidebar,
@@ -22,6 +24,50 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/legal-clarity-ai/app-header";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
+function UserProfileButton() {
+  const { user, signOut } = useAuth();
+
+  if (!user) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto">
+          <Avatar className="h-8 w-8">
+             <AvatarFallback>
+              {user.displayName?.charAt(0) || user.email?.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="truncate text-left">
+            <div className="font-medium truncate">{user.displayName || 'User'}</div>
+            <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="start" className="w-56">
+        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={signOut}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          {/* UserProfileButton removed */}
+          <UserProfileButton />
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>

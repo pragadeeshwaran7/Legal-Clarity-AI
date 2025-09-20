@@ -26,7 +26,7 @@ function GoogleIcon() {
     );
 }
 
-export default function SignInPage() {
+export default function SignUpPage() {
   const router = useRouter();
   const { signInWithGoogle, error, loading } = useAuth();
 
@@ -41,9 +41,9 @@ export default function SignInPage() {
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <Scale className="mx-auto h-12 w-12 text-primary" />
-        <CardTitle className="text-2xl font-headline mt-4">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl font-headline mt-4">Create an Account</CardTitle>
         <CardDescription>
-          Sign in to access your dashboard.
+          Get started by signing up with your Google account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -58,12 +58,12 @@ export default function SignInPage() {
           ) : (
             <>
                 <GoogleIcon />
-                Sign in with Google
+                Sign up with Google
             </>
           )}
         </Button>
          <CardDescription className="text-center">
-            Don't have an account? <Link href="/sign-up" className="text-primary hover:underline">Sign Up</Link>
+            Already have an account? <Link href="/sign-in" className="text-primary hover:underline">Sign In</Link>
         </CardDescription>
       </CardContent>
     </Card>
