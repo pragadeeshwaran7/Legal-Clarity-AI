@@ -22,8 +22,8 @@ export type SuggestAmendmentInput = z.infer<typeof SuggestAmendmentInputSchema>;
 const SuggestAmendmentOutputSchema = z.object({
   suggestedAmendment: z
     .string()
-    .describe('The AI-generated, revised clause that is more favorable to the user.'),
-  explanation: z.string().describe('An explanation of how the new clause mitigates the original risk.'),
+    .describe('The AI-generated, revised clause that is more favorable to the user and legally compliant.'),
+  explanation: z.string().describe('An explanation of how the new clause mitigates the original risk and improves legal compliance.'),
 });
 export type SuggestAmendmentOutput = z.infer<typeof SuggestAmendmentOutputSchema>;
 
@@ -37,17 +37,17 @@ const prompt = ai.definePrompt({
   name: 'suggestAmendmentPrompt',
   input: {schema: SuggestAmendmentInputSchema},
   output: {schema: SuggestAmendmentOutputSchema},
-  prompt: `You are an expert paralegal AI specializing in contract negotiation and revision. Your task is to rewrite a risky legal clause to be more fair and balanced for the user.
+  prompt: `You are an expert paralegal AI specializing in contract negotiation and revision. Your task is to rewrite a risky or illegal legal clause to be more fair, balanced, and legally compliant for the user.
 
-Analyze the original clause and the associated risk. Then, generate a revised version of the clause that mitigates this risk. Also, provide a brief explanation for why your suggested amendment is better.
+Analyze the original clause and the associated risk. Then, generate a revised version of the clause that mitigates this risk and corrects any potential legal violations. Also, provide a brief explanation for why your suggested amendment is better, both for fairness and for legal compliance.
 
 Original Clause:
 "{{{originalClause}}}"
 
-Identified Risk:
+Identified Risk/Illegality:
 "{{{riskExplanation}}}"
 
-Rewrite the clause to protect the user's interests. Maintain a professional and legally sound tone.
+Rewrite the clause to protect the user's interests while ensuring it is legally sound and enforceable. Maintain a professional tone.
 `,
 });
 

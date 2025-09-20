@@ -6,6 +6,7 @@ export type AnalysisResult = {
   riskAssessment: AnalyzeLegalDocumentOutput["riskAssessment"];
   keyClauses: AnalyzeLegalDocumentOutput["keyClauses"];
   detailedRisks: AssessDocumentRiskOutput;
+  complianceAnalysis: AnalyzeLegalDocumentOutput["complianceAnalysis"];
 };
 
 export type QAMessage = {

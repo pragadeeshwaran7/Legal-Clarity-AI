@@ -1,4 +1,3 @@
-// src/ai/flows/simplify-legal-jargon.ts
 'use server';
 
 /**
@@ -32,8 +31,11 @@ const prompt = ai.definePrompt({
   output: {schema: SimplifyLegalJargonOutputSchema},
   prompt: `You are an expert legal professional skilled at explaining complex legal jargon in plain, easy-to-understand language.
 
-  Simplify the following legal text so that an average person can understand it:
+  Simplify the following legal text so that an average person can understand it. 
 
+  IMPORTANT: While simplifying, if you identify any clause that appears to be illegal, non-compliant, or unusually harsh, you must add a clear and bolded warning (e.g., **WARNING: This clause may be legally unenforceable...**) within your simplified explanation for that section, briefly stating the potential issue.
+
+  Legal Text:
   {{{legalText}}}
   `,
 });

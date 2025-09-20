@@ -23,6 +23,7 @@ import {
   Loader2,
   Sparkles,
   Volume2,
+  Gavel,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,7 +39,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 
 type RiskAssessmentSectionProps = Pick<
   AnalysisResult,
-  "summary" | "keyClauses" | "riskAssessment" | "detailedRisks"
+  "summary" | "keyClauses" | "riskAssessment" | "detailedRisks" | "complianceAnalysis"
 >;
 
 type AmendmentSuggestion = {
@@ -82,6 +83,7 @@ export function RiskAssessmentSection({
   keyClauses,
   riskAssessment,
   detailedRisks,
+  complianceAnalysis,
 }: RiskAssessmentSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedRisk, setSelectedRisk] = useState<{
@@ -162,6 +164,20 @@ export function RiskAssessmentSection({
           </CardContent>
         </Card>
 
+         <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Gavel className="h-6 w-6 text-primary" />
+              <CardTitle className="font-headline">
+                Legal Compliance Analysis
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">{complianceAnalysis}</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="font-headline">Key Clauses Explained</CardTitle>
@@ -191,13 +207,22 @@ export function RiskAssessmentSection({
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground space-y-4">
-                      <p>{risk.explanation}</p>
+                      <div>
+                        <h4 className="font-semibold text-foreground mb-1">Risk Explanation</h4>
+                        <p>{risk.explanation}</p>
+                      </div>
+                      {risk.complianceIssues && risk.complianceIssues !== "None" && (
+                        <div>
+                          <h4 className="font-semibold text-foreground mb-1">Compliance Issues</h4>
+                          <p className="text-amber-500">{risk.complianceIssues}</p>
+                        </div>
+                      )}
                       {risk.riskLevel !== "Low" && (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() =>
-                            handleSuggestAmendment(risk.clause, risk.explanation)
+                            handleSuggestAmendment(risk.clause, `${risk.explanation} ${risk.complianceIssues}`)
                           }
                           disabled={isLoadingAmendment}
                         >
@@ -237,7 +262,7 @@ export function RiskAssessmentSection({
               </blockquote>
             </div>
             <div>
-              <h4 className="font-semibold mb-2 text-destructive">Identified Risk</h4>
+              <h4 className="font-semibold mb-2 text-destructive">Identified Risk & Compliance Issues</h4>
                <p className="text-sm text-muted-foreground">{selectedRisk?.explanation}</p>
             </div>
             <Separator />

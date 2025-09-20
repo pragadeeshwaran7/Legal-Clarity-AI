@@ -18,7 +18,7 @@ const CompareDocumentsInputSchema = z.object({
 export type CompareDocumentsInput = z.infer<typeof CompareDocumentsInputSchema>;
 
 const CompareDocumentsOutputSchema = z.object({
-  comparison: z.string().describe('A detailed comparison of the two documents, highlighting similarities, differences, and potential conflicts.'),
+  comparison: z.string().describe('A detailed comparison of the two documents, highlighting similarities, differences, potential conflicts, and compliance issues.'),
 });
 export type CompareDocumentsOutput = z.infer<typeof CompareDocumentsOutputSchema>;
 
@@ -36,7 +36,8 @@ const prompt = ai.definePrompt({
   1.  **Key Similarities**: Identify major clauses or terms that are similar in both documents.
   2.  **Significant Differences**: Point out important terms, obligations, or clauses that differ between the two.
   3.  **Potential Conflicts**: Highlight any areas where the two documents might contradict each other or lead to legal conflicts if both were in effect.
-  4.  **Overall Assessment**: Provide a brief summary of how the documents relate to each other (e.g., one is an update of the other, they cover different aspects of an agreement, etc.).
+  4.  **Legal Compliance**: Analyze the legality of both documents. Point out any potentially illegal or non-compliant clauses in either document, specifying the potential legal issues and which document is more compliant.
+  5.  **Overall Assessment**: Provide a brief summary of how the documents relate to each other (e.g., one is an update of the other, they cover different aspects of an agreement, etc.).
 
   Structure your output clearly with headings for each section.
 

@@ -36,7 +36,17 @@ const prompt = ai.definePrompt({
   name: 'answerDocumentQuestionsPrompt',
   input: {schema: AnswerDocumentQuestionsInputSchema},
   output: {schema: AnswerDocumentQuestionsOutputSchema},
-  prompt: `You are an expert legal assistant. Please answer the following question about the document provided.\n\nDocument:\n{{{documentText}}}\n\nQuestion:\n{{{question}}}\n\nAnswer:`,
+  prompt: `You are an expert legal assistant with extensive experience in legal cases, compliance, and regulations. Please answer the following question about the document provided. 
+
+If the question touches upon the legality or compliance of a clause, you must provide detailed information, citing relevant laws, sections (e.g., IPC sections), or legal principles. Explain the potential legal consequences of any non-compliant or illegal clauses related to the question.
+
+Document:
+{{{documentText}}}
+
+Question:
+{{{question}}}
+
+Answer:`,
 });
 
 const answerDocumentQuestionsFlow = ai.defineFlow(

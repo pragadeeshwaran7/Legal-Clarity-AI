@@ -111,6 +111,7 @@ export async function analyzeDocument(
         riskAssessment: analysis.riskAssessment,
         keyClauses: analysis.keyClauses,
         detailedRisks: riskDetails,
+        complianceAnalysis: analysis.complianceAnalysis,
       },
       error: null,
       fileName: file.name,
