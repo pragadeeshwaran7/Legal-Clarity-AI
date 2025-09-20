@@ -29,13 +29,14 @@ export function UserProfileButton() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-start gap-2 p-2 h-auto text-left">
           <Avatar className="h-8 w-8">
+             <AvatarImage src={user.photoURL ?? undefined} alt={user.displayName ?? "User"} />
              <AvatarFallback>
-              <User />
+              {user.displayName ? user.displayName.charAt(0).toUpperCase() : <User />}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
+          <div className="flex flex-col truncate">
             <span className="text-sm font-medium text-sidebar-foreground truncate">
-              {user.email}
+              {user.displayName ?? user.email}
             </span>
           </div>
         </Button>

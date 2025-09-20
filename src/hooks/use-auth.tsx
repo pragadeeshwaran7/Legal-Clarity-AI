@@ -7,7 +7,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { onAuthStateChanged, signOut as firebaseSignOut, type User } from "firebase/auth";
+import { 
+  onAuthStateChanged, 
+  signOut as firebaseSignOut, 
+  signInWithPopup,
+  GoogleAuthProvider,
+  type User 
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -16,6 +22,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,12 +41,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
   const signOut = async () => {
     await firebaseSignOut(auth);
     router.push("/sign-in");
   };
 
-  const value = { user, loading, signOut };
+  const value = { user, loading, signOut, signInWithGoogle };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
