@@ -91,12 +91,8 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 
 async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
   // Use OCR for all PDFs to handle both text-based and scanned documents.
-  return getTextFromImage(buffer, "application/pdf");
-}
-
-async function getTextFromImage(buffer: ArrayBuffer, mimeType: string): Promise<string> {
   const b64 = Buffer.from(buffer).toString('base64');
-  const dataUri = `data:${mimeType};base64,${b64}`;
+  const dataUri = `data:application/pdf;base64,${b64}`;
   const result = await performOcr({ imageDataUri: dataUri });
   return result.text;
 }
@@ -104,10 +100,6 @@ async function getTextFromImage(buffer: ArrayBuffer, mimeType: string): Promise<
 
 async function getTextFromFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-
-  if (file.type.startsWith("image/")) {
-    return getTextFromImage(buffer, file.type);
-  }
 
   if (
     file.type ===
