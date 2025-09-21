@@ -32,19 +32,22 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-// Admin app
+// Admin app (server-side)
 if (!getAdminApps().length) {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) : null;
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      : undefined;
+
     if (serviceAccount) {
-      initializeAdminApp({
-        credential: credential.cert(serviceAccount),
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      });
-    } else if (process.env.NODE_ENV !== 'production') {
-      // Use application default credentials in development
-      initializeAdminApp({
-        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      });
+        initializeAdminApp({
+            credential: credential.cert(serviceAccount),
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        });
+    } else {
+        // Use Application Default Credentials in production/hosted environments
+        initializeAdminApp({
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        });
     }
 }
 
