@@ -20,23 +20,25 @@ import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serve
 import * as admin from 'firebase-admin';
 
 // Firebase Admin SDK Initialization
-try {
-    if (!admin.apps.length) {
-        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-            ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-            : undefined;
+if (!admin.apps.length) {
+  try {
+    // This will use Application Default Credentials in a hosted environment.
+    admin.initializeApp();
+  } catch (error) {
+    // For local development, it might fall back to the service account variable.
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      : undefined;
 
-        if (serviceAccount) {
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccount),
-            });
-        } else {
-            // For environments where Application Default Credentials are available.
-            admin.initializeApp();
-        }
+    if (serviceAccount) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    } else {
+        console.error('Firebase Admin SDK initialization failed:', error);
+        console.error('For local development, ensure FIREBASE_SERVICE_ACCOUNT is set.');
     }
-} catch (error) {
-    console.error('Firebase Admin SDK initialization error:', error);
+  }
 }
 
 // Client-side Firebase App Initialization
