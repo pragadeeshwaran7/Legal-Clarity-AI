@@ -14,7 +14,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import type { AnalysisResult } from "@/lib/types";
 import {
@@ -23,7 +22,6 @@ import {
   ShieldQuestion,
   Loader2,
   Sparkles,
-  Volume2,
   Gavel,
 } from "lucide-react";
 import {
@@ -34,9 +32,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "../ui/button";
-import { getAmendment, getAudioSummary } from "@/app/actions";
+import { getAmendment } from "@/app/actions";
 import { Separator } from "../ui/separator";
-import { Alert, AlertDescription } from "../ui/alert";
 
 type RiskAssessmentSectionProps = Pick<
   AnalysisResult,
@@ -94,11 +91,6 @@ export function RiskAssessmentSection({
   const [amendment, setAmendment] = useState<AmendmentSuggestion | null>(null);
   const [isLoadingAmendment, setIsLoadingAmendment] = useState(false);
 
-  const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
-
-
   const handleSuggestAmendment = async (
     originalClause: string,
     riskExplanation: string
@@ -117,19 +109,6 @@ export function RiskAssessmentSection({
     setIsLoadingAmendment(false);
   };
   
-  const handleGenerateAudio = async () => {
-    setIsLoadingAudio(true);
-    setAudioDataUri(null);
-    setAudioError(null);
-    const formData = new FormData();
-    formData.append("text", summary);
-
-    const result = await getAudioSummary(formData);
-    setAudioDataUri(result.audioDataUri);
-    setAudioError(result.error)
-    setIsLoadingAudio(false);
-  };
-
   return (
     <>
       <div className="space-y-6">
@@ -140,18 +119,6 @@ export function RiskAssessmentSection({
           <CardContent>
             <p className="text-muted-foreground">{summary}</p>
           </CardContent>
-           <CardFooter className="flex-col items-start gap-4">
-            <Button onClick={handleGenerateAudio} disabled={isLoadingAudio} variant="outline" size="sm">
-              {isLoadingAudio ? <Loader2 className="animate-spin mr-2" /> : <Volume2 className="mr-2"/>}
-              Read Summary
-            </Button>
-            {audioError && <Alert variant="destructive"><AlertDescription>{audioError}</AlertDescription></Alert>}
-            {audioDataUri && (
-                <audio controls src={audioDataUri} className="w-full">
-                    Your browser does not support the audio element.
-                </audio>
-            )}
-          </CardFooter>
         </Card>
 
         <Card>
@@ -292,5 +259,3 @@ export function RiskAssessmentSection({
     </>
   );
 }
-
-    

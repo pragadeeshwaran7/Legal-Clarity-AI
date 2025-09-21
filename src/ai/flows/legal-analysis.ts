@@ -5,8 +5,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import wav from 'wav';
-import {googleAI} from '@genkit-ai/googleai';
 
 // Define the schema for a single detailed risk.
 const DetailedRiskSchema = z.object({
@@ -22,14 +20,6 @@ const AnalyzeLegalDocumentInputSchema = z.object({
   documentText: z
     .string()
     .describe('The text content of the legal document to be analyzed.'),
-  documentType: z
-    .string()
-    .optional()
-    .describe('The type of legal document (e.g., rental agreement, loan contract).'),
-  analysisMode: z
-    .enum(['Comprehensive', 'Quick'])
-    .default('Comprehensive')
-    .describe('The mode of analysis: Comprehensive or Quick.'),
 });
 export type AnalyzeLegalDocumentInput = z.infer<typeof AnalyzeLegalDocumentInputSchema>;
 
@@ -38,6 +28,7 @@ const AnalyzeLegalDocumentOutputSchema = z.object({
   riskAssessment: z.string().describe('A general assessment of potential risks in the document.'),
   keyClauses: z.string().describe('Explanations of the key clauses in the document.'),
   complianceAnalysis: z.string().describe('An analysis of the document\'s compliance with relevant laws and regulations, including potential legal consequences for non-compliance.'),
+  detailedRisks: z.array(DetailedRiskSchema).describe('An array of risk assessments for each clause in the document.'),
 });
 export type AnalyzeLegalDocumentOutput = z.infer<typeof AnalyzeLegalDocumentOutputSchema>;
 
@@ -56,13 +47,12 @@ const analyzeLegalDocumentPrompt = ai.definePrompt({
   2.  **General Risk Assessment**: A general overview of the potential risks.
   3.  **Key Clauses**: Explanations of the most important clauses.
   4.  **Compliance Analysis**: A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the potential legal consequences (e.g., fines, unenforceability).
-
-  Do NOT perform a detailed clause-by-clause risk breakdown in this step. That will be handled separately.
-
-  Take into account the document type and analysis mode to tailor the response.
-
-  Document Type: {{documentType}}
-  Analysis Mode: {{analysisMode}}
+  5.  **Detailed Clause Analysis**: For every clause in the document, you must assess it. If a clause may put the user at a disadvantage, contains excessive obligations, or is potentially illegal, you must identify it and provide the following details:
+      - The exact clause text.
+      - A risk level (Low, Medium, or High).
+      - A clear explanation of the risk.
+      - Any specific legal compliance issues, citing relevant laws if possible. If there are no compliance issues, state 'None'.
+      If a clause has no risk, do not include it in the final array.
 
   Document Text: {{{documentText}}}
   `,
@@ -81,202 +71,7 @@ const analyzeLegalDocumentFlow = ai.defineFlow(
 );
 
 
-// Assess Document Risk (for detailed risks)
-const AssessDocumentRiskInputSchema = z.object({
-  documentText: z.string().describe('The text content of the legal document.')
-});
-export type AssessDocumentRiskInput = z.infer<typeof AssessDocumentRiskInputSchema>;
-
-const AssessDocumentRiskOutputSchema = z.object({
-  detailedRisks: z.array(DetailedRiskSchema).describe('An array of risk assessments for each clause in the document.'),
-});
-export type AssessDocumentRiskOutput = z.infer<typeof AssessDocumentRiskOutputSchema>;
-
-export async function assessDocumentRisk(input: AssessDocumentRiskInput): Promise<AssessDocumentRiskOutput> {
-  return assessDocumentRiskFlow(input);
-}
-
-const assessDocumentRiskPrompt = ai.definePrompt({
-  name: 'assessDocumentRiskPrompt',
-  input: {schema: AssessDocumentRiskInputSchema},
-  output: {schema: AssessDocumentRiskOutputSchema},
-  prompt: `You are a meticulous legal risk assessor. Your sole focus is to perform a detailed, clause-by-clause risk analysis of the provided legal document.
-
-  For every clause in the document, you must assess it. If a clause may put the user at a disadvantage, contains excessive obligations, or is potentially illegal, you must identify it and provide the following details:
-  - The exact clause text.
-  - A risk level (Low, Medium, or High).
-  - A clear explanation of the risk.
-  - Any specific legal compliance issues, citing relevant laws if possible. If there are no compliance issues, state 'None'.
-
-  Return an array of these detailed risk objects. If a clause has no risk, do not include it in the final array.
-
-  Document Text: {{{documentText}}}
-  `
-});
-
-const assessDocumentRiskFlow = ai.defineFlow(
-  {
-    name: 'assessDocumentRiskFlow',
-    inputSchema: AssessDocumentRiskInputSchema,
-    outputSchema: AssessDocumentRiskOutputSchema,
-  },
-  async input => {
-    const {output} = await assessDocumentRiskPrompt(input);
-    return output!;
-  }
-);
-
-
-// 2. Answer Document Questions
-const AnswerDocumentQuestionsInputSchema = z.object({
-  documentText: z.string().describe('The text content of the document.'),
-  question: z.string().describe('The question to be answered about the document.'),
-});
-export type AnswerDocumentQuestionsInput = z.infer<
-  typeof AnswerDocumentQuestionsInputSchema
->;
-
-const AnswerDocumentQuestionsOutputSchema = z.object({
-  answer: z.string().describe('The answer to the question about the document.'),
-});
-export type AnswerDocumentQuestionsOutput = z.infer<
-  typeof AnswerDocumentQuestionsOutputSchema
->;
-
-export async function answerDocumentQuestions(
-  input: AnswerDocumentQuestionsInput
-): Promise<AnswerDocumentQuestionsOutput> {
-  return answerDocumentQuestionsFlow(input);
-}
-
-const answerDocumentQuestionsPrompt = ai.definePrompt({
-  name: 'answerDocumentQuestionsPrompt',
-  input: {schema: AnswerDocumentQuestionsInputSchema},
-  output: {schema: AnswerDocumentQuestionsOutputSchema},
-  prompt: `You are an expert legal assistant with extensive experience in legal cases, compliance, and regulations. Please answer the following question about the document provided. 
-
-If the question touches upon the legality or compliance of a clause, you must provide detailed information, citing relevant laws, sections (e.g., IPC sections), or legal principles. Explain the potential legal consequences of any non-compliant or illegal clauses related to the question.
-
-Document:
-{{{documentText}}}
-
-Question:
-{{{question}}}
-
-Answer:`,
-});
-
-const answerDocumentQuestionsFlow = ai.defineFlow(
-  {
-    name: 'answerDocumentQuestionsFlow',
-    inputSchema: AnswerDocumentQuestionsInputSchema,
-    outputSchema: AnswerDocumentQuestionsOutputSchema,
-  },
-  async input => {
-    const {output} = await answerDocumentQuestionsPrompt(input);
-    return output!;
-  }
-);
-
-
-// 3. Simplify Legal Jargon
-const SimplifyLegalJargonInputSchema = z.object({
-  legalText: z.string().describe('The legal text to simplify.'),
-});
-export type SimplifyLegalJargonInput = z.infer<typeof SimplifyLegalJargonInputSchema>;
-
-const SimplifyLegalJargonOutputSchema = z.object({
-  plainLanguageText: z.string().describe('The simplified plain language text.'),
-});
-export type SimplifyLegalJargonOutput = z.infer<typeof SimplifyLegalJargonOutputSchema>;
-
-export async function simplifyLegalJargon(input: SimplifyLegalJargonInput): Promise<SimplifyLegalJargonOutput> {
-  return simplifyLegalJargonFlow(input);
-}
-
-const simplifyLegalJargonPrompt = ai.definePrompt({
-  name: 'simplifyLegalJargonPrompt',
-  input: {schema: SimplifyLegalJargonInputSchema},
-  output: {schema: SimplifyLegalJargonOutputSchema},
-  prompt: `You are an expert legal professional skilled at explaining complex legal jargon in plain, easy-to-understand language.
-
-  Simplify the following legal text so that an average person can understand it. 
-
-  IMPORTANT: While simplifying, if you identify any clause that appears to be illegal, non-compliant, or unusually harsh, you must add a clear and bolded warning (e.g., **WARNING: This clause may be legally unenforceable...**) within your simplified explanation for that section, briefly stating the potential issue.
-
-  Legal Text:
-  {{{legalText}}}
-  `,
-});
-
-const simplifyLegalJargonFlow = ai.defineFlow(
-  {
-    name: 'simplifyLegalJargonFlow',
-    inputSchema: SimplifyLegalJargonInputSchema,
-    outputSchema: SimplifyLegalJargonOutputSchema,
-  },
-  async input => {
-    const {output} = await simplifyLegalJargonPrompt(input);
-    return output!;
-  }
-);
-
-
-// 4. Compare Documents
-const CompareDocumentsInputSchema = z.object({
-  document1: z.string().describe('The text content of the first legal document.'),
-  document2: z.string().describe('The text content of the second legal document.'),
-});
-export type CompareDocumentsInput = z.infer<typeof CompareDocumentsInputSchema>;
-
-const CompareDocumentsOutputSchema = z.object({
-  comparison: z.string().describe('A detailed comparison of the two documents, highlighting similarities, differences, potential conflicts, and compliance issues.'),
-});
-export type CompareDocumentsOutput = z.infer<typeof CompareDocumentsOutputSchema>;
-
-export async function compareDocuments(input: CompareDocumentsInput): Promise<CompareDocumentsOutput> {
-  return compareDocumentsFlow(input);
-}
-
-const compareDocumentsPrompt = ai.definePrompt({
-  name: 'compareDocumentsPrompt',
-  input: {schema: CompareDocumentsInputSchema},
-  output: {schema: CompareDocumentsOutputSchema},
-  prompt: `You are an AI legal assistant specializing in comparing legal documents.
-
-  Analyze the two legal documents provided below. Generate a detailed comparison that covers the following points:
-  1.  **Key Similarities**: Identify major clauses or terms that are similar in both documents.
-  2.  **Significant Differences**: Point out important terms, obligations, or clauses that differ between the two.
-  3.  **Potential Conflicts**: Highlight any areas where the two documents might contradict each other or lead to legal conflicts if both were in effect.
-  4.  **Legal Compliance**: Analyze the legality of both documents. Point out any potentially illegal or non-compliant clauses in either document, specifying the potential legal issues and which document is more compliant.
-  5.  **Overall Assessment**: Provide a brief summary of how the documents relate to each other (e.g., one is an update of the other, they cover different aspects of an agreement, etc.).
-
-  Structure your output clearly with headings for each section.
-
-  **Document 1:**
-  {{{document1}}}
-
-  ---
-
-  **Document 2:**
-  {{{document2}}}
-  `,
-});
-
-const compareDocumentsFlow = ai.defineFlow(
-  {
-    name: 'compareDocumentsFlow',
-    inputSchema: CompareDocumentsInputSchema,
-    outputSchema: CompareDocumentsOutputSchema,
-  },
-  async input => {
-    const {output} = await compareDocumentsPrompt(input);
-    return output!;
-  }
-);
-
-
-// 5. Suggest Amendment
+// Suggest Amendment
 const SuggestAmendmentInputSchema = z.object({
   originalClause: z.string().describe('The original, risky legal clause.'),
   riskExplanation: z
@@ -325,133 +120,6 @@ const suggestAmendmentFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await suggestAmendmentPrompt(input);
-    return output!;
-  }
-);
-
-
-// 6. Generate Audio Summary
-const GenerateAudioSummaryInputSchema = z.object({
-  text: z.string().describe('The text to be converted to speech.'),
-});
-export type GenerateAudioSummaryInput = z.infer<typeof GenerateAudioSummaryInputSchema>;
-
-const GenerateAudioSummaryOutputSchema = z.object({
-  audioDataUri: z
-    .string()
-    .describe('The generated audio as a data URI in WAV format.'),
-});
-export type GenerateAudioSummaryOutput = z.infer<typeof GenerateAudioSummaryOutputSchema>;
-
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    let bufs = [] as any[];
-    writer.on('error', reject);
-    writer.on('data', function (d) {
-      bufs.push(d);
-    });
-    writer.on('end', function () {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
-
-export async function generateAudioSummary(
-  input: GenerateAudioSummaryInput
-): Promise<GenerateAudioSummaryOutput> {
-  return generateAudioSummaryFlow(input);
-}
-
-const generateAudioSummaryFlow = ai.defineFlow(
-  {
-    name: 'generateAudioSummaryFlow',
-    inputSchema: GenerateAudioSummaryInputSchema,
-    outputSchema: GenerateAudioSummaryOutputSchema,
-  },
-  async input => {
-    const {media} = await ai.generate({
-      model: googleAI.model('gemini-2.5-flash-preview-tts'),
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {voiceName: 'Algenib'},
-          },
-        },
-      },
-      prompt: input.text,
-    });
-
-    if (!media) {
-      throw new Error('No audio media was returned from the model.');
-    }
-
-    const audioBuffer = Buffer.from(
-      media.url.substring(media.url.indexOf(',') + 1),
-      'base64'
-    );
-
-    const wavBase64 = await toWav(audioBuffer);
-
-    return {
-      audioDataUri: `data:audio/wav;base64,${wavBase64}`,
-    };
-  }
-);
-
-
-// 7. Perform OCR
-const PerformOcrInputSchema = z.object({
-  imageDataUri: z
-    .string()
-    .describe(
-      "An image of a document page, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
-});
-export type PerformOcrInput = z.infer<typeof PerformOcrInputSchema>;
-
-const PerformOcrOutputSchema = z.object({
-  text: z.string().describe('The extracted text from the document image.'),
-});
-export type PerformOcrOutput = z.infer<typeof PerformOcrOutputSchema>;
-
-export async function performOcr(input: PerformOcrInput): Promise<PerformOcrOutput> {
-  return performOcrFlow(input);
-}
-
-const performOcrPrompt = ai.definePrompt({
-  name: 'performOcrPrompt',
-  input: {schema: PerformOcrInputSchema},
-  output: {schema: PerformOcrOutputSchema},
-  prompt: `You are an Optical Character Recognition (OCR) expert. 
-  
-  Extract all text from the following document image. Maintain the original formatting as much as possible.
-  
-  Image: {{media url=imageDataUri}}`,
-});
-
-const performOcrFlow = ai.defineFlow(
-  {
-    name: 'performOcrFlow',
-    inputSchema: PerformOcrInputSchema,
-    outputSchema: PerformOcrOutputSchema,
-  },
-  async input => {
-    const {output} = await performOcrPrompt(input);
     return output!;
   }
 );
