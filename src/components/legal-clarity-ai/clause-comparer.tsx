@@ -114,4 +114,3 @@ export function ClauseComparer({ detailedRisks }: ClauseComparerProps) {
         </>
     );
 }
-
