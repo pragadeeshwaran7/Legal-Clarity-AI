@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useEffect, useRef, ChangeEvent, useState, useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { useEffect, useRef, ChangeEvent, useState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { FileUp, Loader2, ScanSearch, CheckCircle, XCircle } from "lucide-react";
 import { analyzeDocument } from "@/app/actions";
 import type { AnalysisResult } from "@/lib/types";
@@ -36,9 +36,9 @@ function SubmitButton({ file }: { file: File | null }) {
 }
 
 export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
-    const { user } = useAuth();
+    const { getIdToken } = useAuth();
     const formRef = useRef<HTMLFormElement>(null);
-    const [state, formAction, isPending] = useActionState(analyzeDocument, {
+    const [state, formAction] = useFormState(analyzeDocument, {
         data: null,
         error: null,
         fileName: "",
@@ -46,12 +46,21 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
     });
     const [file, setFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [idToken, setIdToken] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isPending && (state.data || state.error)) {
-            onAnalysisComplete(state.data, state.documentText, state.fileName, state.error);
-        }
-    }, [state, isPending, onAnalysisComplete]);
+        if (!state.data && !state.error) return;
+        onAnalysisComplete(state.data, state.documentText, state.fileName, state.error);
+    }, [state, onAnalysisComplete]);
+
+     useEffect(() => {
+        const fetchToken = async () => {
+            const token = await getIdToken();
+            setIdToken(token);
+        };
+        fetchToken();
+     }, [getIdToken]);
+
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];
@@ -80,6 +89,7 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
                     action={formAction}
                     className="space-y-6"
                 >
+                    <input type="hidden" name="idToken" value={idToken || ''} />
                     <div className="space-y-2">
                         <Label htmlFor="file-upload" className="sr-only">Upload Document</Label>
                         <div className="flex items-center justify-center w-full">

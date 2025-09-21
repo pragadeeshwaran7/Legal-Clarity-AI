@@ -15,9 +15,6 @@ import mammoth from "mammoth";
 import { getApps, initializeApp, getApp, deleteApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import * as admin from 'firebase-admin';
-import { headers } from "next/headers";
-import { auth } from 'firebase-admin';
-
 
 // Firebase Admin SDK Initialization
 try {
@@ -70,6 +67,7 @@ const FileSchema = z.object({
   file: z
     .instanceof(File)
     .refine((file) => file.size > 0, { message: "File cannot be empty." }),
+  idToken: z.string().optional(),
 });
 
 type FormState = {
@@ -86,8 +84,7 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 
 async function getTextFromFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  const b64 = Buffer.from(buffer).toString('base64');
-
+  
   if (
     file.type ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -96,6 +93,7 @@ async function getTextFromFile(file: File): Promise<string> {
   }
 
   if (file.type === "application/pdf") {
+    const b64 = Buffer.from(buffer).toString('base64');
     const dataUri = `data:application/pdf;base64,${b64}`;
     const result = await performOcr({ imageDataUri: dataUri });
     return result.text;
@@ -112,16 +110,10 @@ export async function analyzeDocument(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const authHeader = headers().get('Authorization');
-  const token = authHeader?.split('Bearer ')[1] ?? null;
-  const userId = await getUserIdFromToken(token);
-
-  if (!userId) {
-     return { data: null, error: "User not authenticated. Please sign in again.", fileName: "", documentText: "" };
-  }
-
+  
   const validatedFields = FileSchema.safeParse({
     file: formData.get("file"),
+    idToken: formData.get("idToken"),
   });
 
   if (!validatedFields.success) {
@@ -134,7 +126,13 @@ export async function analyzeDocument(
       documentText: "",
     };
   }
-  const { file } = validatedFields.data;
+  const { file, idToken } = validatedFields.data;
+
+  const userId = await getUserIdFromToken(idToken || null);
+
+  if (!userId) {
+     return { data: null, error: "User not authenticated. Please sign in again.", fileName: file.name, documentText: "" };
+  }
 
   let documentText = "";
   try {
