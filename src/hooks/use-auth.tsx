@@ -97,15 +97,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e: any) {
       console.error(e);
       if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
-        setError('Sign-in process was cancelled.');
+        setError('Sign-in process was cancelled. Please try again.');
       } else if (e.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by the browser. Please allow popups for this site.');
+        setError('Popup was blocked by the browser. Please allow popups for this site and try again.');
       }
       else {
-        setError(e.message);
+        setError(`An unknown error occurred during sign-in: ${e.message}`);
       }
     } finally {
-        // loading state will be updated by onAuthStateChanged
+        // The loading state will be properly handled by the onAuthStateChanged listener, 
+        // but we'll set it to false here if an error occurs to ensure the UI is responsive.
+        if (error) {
+            setLoading(false);
+        }
     }
   };
 
@@ -140,7 +144,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const value = { user, loading, error, signInWithGoogle, signOut, getIdToken };
 
-  if (loading) {
+  if (loading && !auth) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
