@@ -22,21 +22,16 @@ import * as admin from 'firebase-admin';
 // Firebase Admin SDK Initialization
 if (!admin.apps.length) {
   try {
-    // This will use Application Default Credentials in a hosted environment.
     admin.initializeApp();
   } catch (error) {
-    // For local development, it might fall back to the service account variable.
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      : undefined;
-
-    if (serviceAccount) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-    } else {
-        console.error('Firebase Admin SDK initialization failed:', error);
-        console.error('For local development, ensure FIREBASE_SERVICE_ACCOUNT is set.');
+    console.error('Firebase Admin SDK initialization failed. Using service account for local dev.', error);
+    try {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+    } catch (e) {
+        console.error('Failed to initialize Firebase Admin with service account.', e);
     }
   }
 }
@@ -207,7 +202,7 @@ export async function analyzeDocument(prevState: FormState, formData: FormData):
     if (!documentText || documentText.trim().length < 20) {
       return {
         data: null,
-        error: "Could not extract sufficient text from the document. It might be empty, password-protected, or in an unsupported format.",
+        error: "Could not extract sufficient text from the document. It might be empty, password-protected, or an image-based PDF.",
         fileName: file.name,
         documentText: "",
       }

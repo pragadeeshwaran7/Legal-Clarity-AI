@@ -88,9 +88,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="w-full flex-grow flex flex-col items-center">
+    <div className="w-full flex-grow flex flex-col items-center justify-center">
       {showFileUpload ? (
-         <div className="w-full max-w-3xl mt-8">
+         <div className="w-full max-w-3xl">
             <FileUpload key={key} onAnalysisComplete={handleAnalysisComplete} />
          </div>
       ) : (
