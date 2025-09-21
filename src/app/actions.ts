@@ -14,9 +14,8 @@ import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
 import { getApps, initializeApp, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
-import { getAuth } from "firebase-admin/auth";
+import { getAuth } from "firebase/auth/admin";
 import { headers } from "next/headers";
-import { credential, getApps as getAdminApps, initializeApp as initializeAdminApp } from 'firebase-admin';
 
 
 const firebaseConfig = {
@@ -31,25 +30,6 @@ const firebaseConfig = {
 // Client-side app
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
-
-// Admin app (server-side)
-if (!getAdminApps().length) {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      : undefined;
-
-    if (serviceAccount) {
-        initializeAdminApp({
-            credential: credential.cert(serviceAccount),
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        });
-    } else {
-        // Use Application Default Credentials in production/hosted environments
-        initializeAdminApp({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        });
-    }
-}
 
 
 async function getUserIdFromToken() {
