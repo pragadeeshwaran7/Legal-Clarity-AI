@@ -14,10 +14,9 @@ import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
 import { getApps, initializeApp, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
-import { getAuth } from "firebase/auth/admin";
+import { getAuth } from "firebase-admin/auth";
 import { headers } from "next/headers";
-import {credential} from 'firebase-admin';
-import { initializeApp as initializeAdminApp, getApps as getAdminApps } from 'firebase-admin/app';
+import { credential, getApps as getAdminApps, initializeApp as initializeAdminApp } from 'firebase-admin';
 
 
 const firebaseConfig = {
@@ -50,7 +49,9 @@ if (!getAdminApps().length) {
 }
 
 
-async function getUserIdFromToken(token: string | null) {
+async function getUserIdFromToken() {
+  const authHeader = headers().get('Authorization');
+  const token = authHeader?.split('Bearer ')[1];
   if (!token) return null;
   try {
     const adminAuth = getAuth();
@@ -58,6 +59,9 @@ async function getUserIdFromToken(token: string | null) {
     return decodedToken.uid;
   } catch (error) {
     console.error("Error verifying ID token:", error);
+    if (error.code === 'auth/id-token-expired') {
+        // Handle expired token, maybe prompt user to re-authenticate
+    }
     return null;
   }
 }
@@ -113,12 +117,10 @@ export async function analyzeDocument(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const authHeader = headers().get('Authorization');
-  const token = authHeader?.split('Bearer ')[1] ?? null;
-  const userId = await getUserIdFromToken(token);
+  const userId = await getUserIdFromToken();
 
   if (!userId) {
-     return { data: null, error: "User not authenticated.", fileName: "", documentText: "" };
+     return { data: null, error: "User not authenticated. Please sign in again.", fileName: "", documentText: "" };
   }
 
   const validatedFields = FileSchema.safeParse({
@@ -199,8 +201,21 @@ export async function analyzeDocument(
   }
 }
 
+async function getUserIdFromTokenHeader(token: string | null) {
+  if (!token) return null;
+  try {
+    const adminAuth = getAuth();
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error("Error verifying ID token:", error);
+    return null;
+  }
+}
+
+
 export async function getAnalysisHistory(token: string): Promise<{ history: any[] | null; error: string | null }> {
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromTokenHeader(token);
     if (!userId) {
          return { history: null, error: 'User not authenticated or token is invalid.' };
     }
@@ -221,7 +236,7 @@ export async function getAnalysisHistory(token: string): Promise<{ history: any[
 }
 
 export async function getAnalysisById(id: string, token: string): Promise<{ data: any | null; error: string | null }> {
-    const userId = await getUserIdFromToken(token);
+    const userId = await getUserIdFromTokenHeader(token);
     if (!userId) {
          return { data: null, error: 'User not authenticated or token is invalid.' };
     }
