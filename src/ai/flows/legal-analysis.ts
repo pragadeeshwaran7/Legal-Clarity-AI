@@ -4,7 +4,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 // Define the schema for a single detailed risk.
 const DetailedRiskSchema = z.object({
