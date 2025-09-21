@@ -16,17 +16,30 @@ import { getApps, initializeApp, getApp, deleteApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import * as admin from 'firebase-admin';
 import { headers } from "next/headers";
+import { auth } from 'firebase-admin';
+
 
 // Firebase Admin SDK Initialization
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-  : undefined;
+try {
+    if (!admin.apps.length) {
+        const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+            ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+            : undefined;
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: serviceAccount ? admin.credential.cert(serviceAccount) : admin.credential.applicationDefault(),
-  });
+        if (serviceAccount) {
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+        } else {
+            // This is for local development with `firebase emulators:start`
+            // and for deployed environments where Application Default Credentials are available.
+            admin.initializeApp();
+        }
+    }
+} catch (error) {
+    console.error('Firebase Admin SDK initialization error:', error);
 }
+
 
 // Client-side Firebase App Initialization
 const firebaseConfig = {
@@ -73,6 +86,7 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 
 async function getTextFromFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
+  const b64 = Buffer.from(buffer).toString('base64');
 
   if (
     file.type ===
@@ -82,9 +96,7 @@ async function getTextFromFile(file: File): Promise<string> {
   }
 
   if (file.type === "application/pdf") {
-    const b64 = Buffer.from(buffer).toString('base64');
     const dataUri = `data:application/pdf;base64,${b64}`;
-    // Use the OCR flow for PDFs, as it's the most reliable way to get text.
     const result = await performOcr({ imageDataUri: dataUri });
     return result.text;
   }
@@ -101,7 +113,7 @@ export async function analyzeDocument(
   formData: FormData
 ): Promise<FormState> {
   const authHeader = headers().get('Authorization');
-  const token = authHeader?.split('Bearer ')[1];
+  const token = authHeader?.split('Bearer ')[1] ?? null;
   const userId = await getUserIdFromToken(token);
 
   if (!userId) {
@@ -373,5 +385,3 @@ export async function getAudioSummary(formData: FormData): Promise<{
         };
     }
 }
-
-    

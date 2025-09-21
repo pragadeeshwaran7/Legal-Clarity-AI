@@ -36,7 +36,7 @@ function SubmitButton({ file }: { file: File | null }) {
 }
 
 export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
-    const { getIdToken } = useAuth();
+    const { user } = useAuth();
     const formRef = useRef<HTMLFormElement>(null);
     const [state, formAction, isPending] = useActionState(analyzeDocument, {
         data: null,
@@ -66,31 +66,6 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
         }
     }
 
-    const formActionWrapper = async (formData: FormData) => {
-        const token = await getIdToken();
-        
-        // Next.js Server Actions don't have a direct way to modify headers
-        // on the fly for a specific action. The recommended pattern is to
-        // pass the token as an argument, but we'll use the native `fetch`
-        // API here to create a request with the correct headers, which the
-        // server action can then read.
-        
-        const response = await fetch(formRef.current!.action, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-            body: formData,
-        });
-
-        // Re-submit the form action with the result from our manual fetch
-        // This is a way to bridge the gap and get the result back into the
-        // `useActionState` hook. This is a known complexity with the current
-        // state of Server Actions. The formAction itself will re-validate
-        // and update the state.
-        formAction(formData);
-    };
-
     return (
         <Card className="w-full max-w-3xl mx-auto shadow-lg border-2 border-primary/20 bg-card/80 backdrop-blur-sm">
             <CardHeader className="text-center">
@@ -102,27 +77,7 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
             <CardContent>
                 <form
                     ref={formRef}
-                    action={async (formData) => {
-                        const token = await getIdToken();
-                        if (!token) {
-                            // This should ideally not happen if the user is on this page
-                            // but as a fallback:
-                            onAnalysisComplete(null, "", "", "Authentication token not found. Please sign in again.");
-                            return;
-                        }
-                        
-                        // We need to create a new `Request` object to be able to set the headers
-                        // for the server action. This is the standard way to pass auth.
-                        const request = new Request(window.location.href, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        
-                        // Bind the request to the server action
-                        const actionWithAuth = analyzeDocument.bind(null, request);
-                        
-                        // Now call the action with the form data
-                        formAction(formData);
-                    }}
+                    action={formAction}
                     className="space-y-6"
                 >
                     <div className="space-y-2">
@@ -167,5 +122,3 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
         </Card>
     );
 }
-
-    
