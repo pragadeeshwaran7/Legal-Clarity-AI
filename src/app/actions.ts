@@ -9,6 +9,7 @@ import {
   performOcr,
   suggestAmendment,
   generateAudioSummary,
+  assessDocumentRisk,
 } from "@/ai/flows/legal-analysis";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
@@ -125,9 +126,13 @@ export async function analyzeText(prevState: FormState, formData: FormData): Pro
     }
     
     try {
-        const analysis = await analyzeLegalDocument({ documentText: text });
+        // Perform analysis in parallel
+        const [analysis, riskDetails] = await Promise.all([
+          analyzeLegalDocument({ documentText: text }),
+          assessDocumentRisk({ documentText: text }),
+        ]);
 
-        if (!analysis) {
+        if (!analysis || !riskDetails) {
             throw new Error("Failed to get a valid analysis from the AI.");
         }
         
@@ -135,8 +140,8 @@ export async function analyzeText(prevState: FormState, formData: FormData): Pro
             summary: analysis.summary,
             riskAssessment: analysis.riskAssessment,
             keyClauses: analysis.keyClauses,
-            detailedRisks: analysis.detailedRisks,
             complianceAnalysis: analysis.complianceAnalysis,
+            detailedRisks: riskDetails.detailedRisks,
         };
 
         try {
@@ -416,5 +421,3 @@ export async function getAudioSummary(formData: FormData): Promise<{
         };
     }
 }
-
-    

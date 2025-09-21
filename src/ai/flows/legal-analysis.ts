@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A consolidated AI agent for all legal document analysis tasks.
@@ -18,7 +17,7 @@ const DetailedRiskSchema = z.object({
 });
 
 
-// 1. Analyze Legal Document (Now includes Detailed Risk Assessment)
+// 1. Analyze Legal Document
 const AnalyzeLegalDocumentInputSchema = z.object({
   documentText: z
     .string()
@@ -39,7 +38,6 @@ const AnalyzeLegalDocumentOutputSchema = z.object({
   riskAssessment: z.string().describe('A general assessment of potential risks in the document.'),
   keyClauses: z.string().describe('Explanations of the key clauses in the document.'),
   complianceAnalysis: z.string().describe('An analysis of the document\'s compliance with relevant laws and regulations, including potential legal consequences for non-compliance.'),
-  detailedRisks: z.array(DetailedRiskSchema).describe('An array of risk assessments for each clause in the document.'),
 });
 export type AnalyzeLegalDocumentOutput = z.infer<typeof AnalyzeLegalDocumentOutputSchema>;
 
@@ -53,14 +51,13 @@ const analyzeLegalDocumentPrompt = ai.definePrompt({
   output: {schema: AnalyzeLegalDocumentOutputSchema},
   prompt: `You are an AI legal assistant specializing in analyzing legal documents. Your analysis must be thorough and include legal compliance checks.
 
-  Analyze the following legal document and provide a complete analysis in a single response.
-
-  The response must include:
+  Analyze the following legal document and provide:
   1.  **Summary**: A concise summary of the document.
   2.  **General Risk Assessment**: A general overview of the potential risks.
   3.  **Key Clauses**: Explanations of the most important clauses.
   4.  **Compliance Analysis**: A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the potential legal consequences (e.g., fines, unenforceability).
-  5.  **Detailed Risks**: A clause-by-clause breakdown of any clause that may put the user at a disadvantage, contain excessive obligations, or is potentially illegal. For each such clause, provide the clause text, a risk level (Low, Medium, or High), an explanation of the risk, and any specific compliance issues.
+
+  Do NOT perform a detailed clause-by-clause risk breakdown in this step. That will be handled separately.
 
   Take into account the document type and analysis mode to tailor the response.
 
@@ -79,6 +76,52 @@ const analyzeLegalDocumentFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await analyzeLegalDocumentPrompt(input);
+    return output!;
+  }
+);
+
+
+// Assess Document Risk (for detailed risks)
+const AssessDocumentRiskInputSchema = z.object({
+  documentText: z.string().describe('The text content of the legal document.')
+});
+export type AssessDocumentRiskInput = z.infer<typeof AssessDocumentRiskInputSchema>;
+
+const AssessDocumentRiskOutputSchema = z.object({
+  detailedRisks: z.array(DetailedRiskSchema).describe('An array of risk assessments for each clause in the document.'),
+});
+export type AssessDocumentRiskOutput = z.infer<typeof AssessDocumentRiskOutputSchema>;
+
+export async function assessDocumentRisk(input: AssessDocumentRiskInput): Promise<AssessDocumentRiskOutput> {
+  return assessDocumentRiskFlow(input);
+}
+
+const assessDocumentRiskPrompt = ai.definePrompt({
+  name: 'assessDocumentRiskPrompt',
+  input: {schema: AssessDocumentRiskInputSchema},
+  output: {schema: AssessDocumentRiskOutputSchema},
+  prompt: `You are a meticulous legal risk assessor. Your sole focus is to perform a detailed, clause-by-clause risk analysis of the provided legal document.
+
+  For every clause in the document, you must assess it. If a clause may put the user at a disadvantage, contains excessive obligations, or is potentially illegal, you must identify it and provide the following details:
+  - The exact clause text.
+  - A risk level (Low, Medium, or High).
+  - A clear explanation of the risk.
+  - Any specific legal compliance issues, citing relevant laws if possible. If there are no compliance issues, state 'None'.
+
+  Return an array of these detailed risk objects. If a clause has no risk, do not include it in the final array.
+
+  Document Text: {{{documentText}}}
+  `
+});
+
+const assessDocumentRiskFlow = ai.defineFlow(
+  {
+    name: 'assessDocumentRiskFlow',
+    inputSchema: AssessDocumentRiskInputSchema,
+    outputSchema: AssessDocumentRiskOutputSchema,
+  },
+  async input => {
+    const {output} = await assessDocumentRiskPrompt(input);
     return output!;
   }
 );
@@ -412,5 +455,3 @@ const performOcrFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    
