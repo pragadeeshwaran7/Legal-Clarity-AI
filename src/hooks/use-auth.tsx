@@ -105,11 +105,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setError(`An unknown error occurred during sign-in: ${e.message}`);
       }
     } finally {
-        // The loading state will be properly handled by the onAuthStateChanged listener, 
-        // but we'll set it to false here if an error occurs to ensure the UI is responsive.
-        if (error) {
-            setLoading(false);
-        }
+        // The onAuthStateChanged listener handles the user state change on success.
+        // We must always set loading to false here to ensure the UI is not frozen,
+        // especially after an error or a successful sign-in before the listener fires.
+        setLoading(false);
     }
   };
 
