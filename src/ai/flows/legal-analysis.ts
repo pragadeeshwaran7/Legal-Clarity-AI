@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A consolidated AI agent for all legal document analysis tasks.
@@ -46,7 +47,7 @@ const analyzeLegalDocumentPrompt = ai.definePrompt({
   1.  **Summary**: A concise summary of the document.
   2.  **General Risk Assessment**: A general overview of the potential risks.
   3.  **Key Clauses**: Explanations of the most important clauses.
-  4.  **Compliance Analysis**: A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the potential legal consequences (e.g., fines, unenforceability).
+  4.  **Compliance Analysis**: A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the a potential legal consequences (e.g., fines, unenforceability).
   5.  **Detailed Clause Analysis**: For every clause in the document, you must assess it. If a clause may put the user at a disadvantage, contains excessive obligations, or is potentially illegal, you must identify it and provide the following details:
       - The exact clause text.
       - A risk level (Low, Medium, or High).
