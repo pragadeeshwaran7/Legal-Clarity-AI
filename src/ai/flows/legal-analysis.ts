@@ -9,7 +9,16 @@ import {z} from 'genkit';
 import wav from 'wav';
 import {googleAI} from '@genkit-ai/googleai';
 
-// 1. Analyze Legal Document
+// Define the schema for a single detailed risk.
+const DetailedRiskSchema = z.object({
+  clause: z.string().describe('The specific clause being assessed.'),
+  riskLevel: z.enum(['Low', 'Medium', 'High']).describe('The risk level of the clause (Low, Medium, or High).'),
+  explanation: z.string().describe('An explanation of why the clause is considered risky.'),
+  complianceIssues: z.string().describe("Specific legal compliance issues or violations associated with the clause. If none, state 'None'.")
+});
+
+
+// 1. Analyze Legal Document (Now includes Detailed Risk Assessment)
 const AnalyzeLegalDocumentInputSchema = z.object({
   documentText: z
     .string()
@@ -27,9 +36,10 @@ export type AnalyzeLegalDocumentInput = z.infer<typeof AnalyzeLegalDocumentInput
 
 const AnalyzeLegalDocumentOutputSchema = z.object({
   summary: z.string().describe('A concise summary of the legal document.'),
-  riskAssessment: z.string().describe('An assessment of potential risks in the document.'),
+  riskAssessment: z.string().describe('A general assessment of potential risks in the document.'),
   keyClauses: z.string().describe('Explanations of the key clauses in the document.'),
   complianceAnalysis: z.string().describe('An analysis of the document\'s compliance with relevant laws and regulations, including potential legal consequences for non-compliance.'),
+  detailedRisks: z.array(DetailedRiskSchema).describe('An array of risk assessments for each clause in the document.'),
 });
 export type AnalyzeLegalDocumentOutput = z.infer<typeof AnalyzeLegalDocumentOutputSchema>;
 
@@ -43,11 +53,14 @@ const analyzeLegalDocumentPrompt = ai.definePrompt({
   output: {schema: AnalyzeLegalDocumentOutputSchema},
   prompt: `You are an AI legal assistant specializing in analyzing legal documents. Your analysis must be thorough and include legal compliance checks.
 
-  Analyze the following legal document and provide:
-  1. A summary of the document.
-  2. A general risk assessment.
-  3. Explanations of key clauses.
-  4. A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the potential legal consequences (e.g., fines, unenforceability).
+  Analyze the following legal document and provide a complete analysis in a single response.
+
+  The response must include:
+  1.  **Summary**: A concise summary of the document.
+  2.  **General Risk Assessment**: A general overview of the potential risks.
+  3.  **Key Clauses**: Explanations of the most important clauses.
+  4.  **Compliance Analysis**: A detailed compliance analysis. If the document or any of its clauses are found to be potentially illegal or non-compliant, you must specify the relevant laws, regulations, or legal principles that are being violated and explain the potential legal consequences (e.g., fines, unenforceability).
+  5.  **Detailed Risks**: A clause-by-clause breakdown of any clause that may put the user at a disadvantage, contain excessive obligations, or is potentially illegal. For each such clause, provide the clause text, a risk level (Low, Medium, or High), an explanation of the risk, and any specific compliance issues.
 
   Take into account the document type and analysis mode to tailor the response.
 
@@ -71,59 +84,7 @@ const analyzeLegalDocumentFlow = ai.defineFlow(
 );
 
 
-// 2. Assess Document Risk
-const AssessDocumentRiskInputSchema = z.object({
-  documentText: z
-    .string()
-    .describe('The text of the legal document to assess.'),
-});
-export type AssessDocumentRiskInput = z.infer<typeof AssessDocumentRiskInputSchema>;
-
-const RiskAssessmentSchema = z.object({
-  clause: z.string().describe('The specific clause being assessed.'),
-  riskLevel: z.enum(['Low', 'Medium', 'High']).describe('The risk level of the clause (Low, Medium, or High).'),
-  explanation: z.string().describe('An explanation of why the clause is considered risky.'),
-  complianceIssues: z.string().describe("Specific legal compliance issues or violations associated with the clause. If none, state 'None'.")
-});
-const AssessDocumentRiskOutputSchema = z.array(RiskAssessmentSchema).describe('An array of risk assessments for each clause in the document.');
-export type AssessDocumentRiskOutput = z.infer<typeof AssessDocumentRiskOutputSchema>;
-
-export async function assessDocumentRisk(input: AssessDocumentRiskInput): Promise<AssessDocumentRiskOutput> {
-  return assessDocumentRiskFlow(input);
-}
-
-const assessDocumentRiskPrompt = ai.definePrompt({
-  name: 'assessDocumentRiskPrompt',
-  input: {schema: AssessDocumentRiskInputSchema},
-  output: {schema: AssessDocumentRiskOutputSchema},
-  prompt: `You are an AI legal assistant tasked with assessing the risk associated with legal documents.
-
-  Analyze the following legal document. For each clause that may put the user at a significant disadvantage, contain excessive obligations, or is potentially illegal, you must provide a detailed assessment.
-
-  For each identified clause, provide:
-  - The specific clause being assessed.
-  - A risk level (Low, Medium, or High).
-  - An explanation of the risk.
-  - A 'complianceIssues' analysis: If the clause is illegal or non-compliant, you must specify the relevant law, regulation, or legal principle it violates and briefly explain the potential legal consequences (e.g., "Violates local tenancy laws regarding security deposits, could be unenforceable and lead to fines."). If there are no compliance issues, state 'None'.
-
-  Document:
-  {{documentText}}
-  `,
-});
-
-const assessDocumentRiskFlow = ai.defineFlow(
-  {
-    name: 'assessDocumentRiskFlow',
-    inputSchema: AssessDocumentRiskInputSchema,
-    outputSchema: AssessDocumentRiskOutputSchema,
-  },
-  async input => {
-    const {output} = await assessDocumentRiskPrompt(input);
-    return output!;
-  }
-);
-
-// 3. Answer Document Questions
+// 2. Answer Document Questions
 const AnswerDocumentQuestionsInputSchema = z.object({
   documentText: z.string().describe('The text content of the document.'),
   question: z.string().describe('The question to be answered about the document.'),
@@ -175,7 +136,7 @@ const answerDocumentQuestionsFlow = ai.defineFlow(
 );
 
 
-// 4. Simplify Legal Jargon
+// 3. Simplify Legal Jargon
 const SimplifyLegalJargonInputSchema = z.object({
   legalText: z.string().describe('The legal text to simplify.'),
 });
@@ -218,7 +179,7 @@ const simplifyLegalJargonFlow = ai.defineFlow(
 );
 
 
-// 5. Compare Documents
+// 4. Compare Documents
 const CompareDocumentsInputSchema = z.object({
   document1: z.string().describe('The text content of the first legal document.'),
   document2: z.string().describe('The text content of the second legal document.'),
@@ -272,7 +233,7 @@ const compareDocumentsFlow = ai.defineFlow(
 );
 
 
-// 6. Suggest Amendment
+// 5. Suggest Amendment
 const SuggestAmendmentInputSchema = z.object({
   originalClause: z.string().describe('The original, risky legal clause.'),
   riskExplanation: z
@@ -326,7 +287,7 @@ const suggestAmendmentFlow = ai.defineFlow(
 );
 
 
-// 7. Generate Audio Summary
+// 6. Generate Audio Summary
 const GenerateAudioSummaryInputSchema = z.object({
   text: z.string().describe('The text to be converted to speech.'),
 });
@@ -410,7 +371,7 @@ const generateAudioSummaryFlow = ai.defineFlow(
 );
 
 
-// 8. Perform OCR
+// 7. Perform OCR
 const PerformOcrInputSchema = z.object({
   imageDataUri: z
     .string()

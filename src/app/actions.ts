@@ -3,7 +3,6 @@
 
 import {
   analyzeLegalDocument,
-  assessDocumentRisk,
   answerDocumentQuestions,
   simplifyLegalJargon,
   compareDocuments,
@@ -22,16 +21,18 @@ import * as admin from 'firebase-admin';
 // Firebase Admin SDK Initialization
 if (!admin.apps.length) {
   try {
+    // This will use Application Default Credentials in a deployed environment.
     admin.initializeApp();
   } catch (error) {
-    console.error('Firebase Admin SDK initialization failed. Using service account for local dev.', error);
+    console.error('Firebase Admin SDK initialization failed with default credentials.', error);
+    // For local development, it will fall back to the service account from environment variables.
     try {
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT!);
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount),
         });
     } catch (e) {
-        console.error('Failed to initialize Firebase Admin with service account.', e);
+        console.error('Failed to initialize Firebase Admin with service account. Ensure FIREBASE_SERVICE_ACCOUNT is set correctly in your .env file for local development.', e);
     }
   }
 }
@@ -124,20 +125,17 @@ export async function analyzeText(prevState: FormState, formData: FormData): Pro
     }
     
     try {
-        const [analysis, riskDetails] = await Promise.all([
-            analyzeLegalDocument({ documentText: text }),
-            assessDocumentRisk({ documentText: text }),
-        ]);
+        const analysis = await analyzeLegalDocument({ documentText: text });
 
-        if (!analysis || !riskDetails) {
+        if (!analysis) {
             throw new Error("Failed to get a valid analysis from the AI.");
         }
-
-        const analysisResult = {
+        
+        const analysisResult: AnalysisResult = {
             summary: analysis.summary,
             riskAssessment: analysis.riskAssessment,
             keyClauses: analysis.keyClauses,
-            detailedRisks: riskDetails,
+            detailedRisks: analysis.detailedRisks,
             complianceAnalysis: analysis.complianceAnalysis,
         };
 
@@ -202,7 +200,7 @@ export async function analyzeDocument(prevState: FormState, formData: FormData):
     if (!documentText || documentText.trim().length < 20) {
       return {
         data: null,
-        error: "Could not extract sufficient text from the document. It might be empty, password-protected, or an image-based PDF.",
+        error: "Could not extract sufficient text from the document. It might be empty, password-protected, or an image-based PDF. Try pasting the text instead.",
         fileName: file.name,
         documentText: "",
       }
@@ -418,3 +416,5 @@ export async function getAudioSummary(formData: FormData): Promise<{
         };
     }
 }
+
+    
