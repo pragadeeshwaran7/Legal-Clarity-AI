@@ -1,14 +1,16 @@
 
 "use server";
 
-import { analyzeLegalDocument } from "@/ai/flows/analyze-legal-document";
-import { assessDocumentRisk } from "@/ai/flows/assess-document-risk";
-import { answerDocumentQuestions } from "@/ai/flows/answer-document-questions";
-import { simplifyLegalJargon } from "@/ai/flows/simplify-legal-jargon";
-import { compareDocuments } from "@/ai/flows/compare-documents";
-import { performOcr } from "@/ai/flows/perform-ocr";
-import { suggestAmendment } from "@/ai/flows/suggest-amendment";
-import { generateAudioSummary } from "@/ai/flows/generate-audio-summary";
+import {
+  analyzeLegalDocument,
+  assessDocumentRisk,
+  answerDocumentQuestions,
+  simplifyLegalJargon,
+  compareDocuments,
+  performOcr,
+  suggestAmendment,
+  generateAudioSummary,
+} from "@/ai/flows/legal-analysis";
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
