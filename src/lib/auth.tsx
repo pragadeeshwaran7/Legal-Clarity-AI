@@ -34,22 +34,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleUser = async (rawUser: User | null) => {
         if (rawUser) {
-            const userRef = doc(db, 'users', rawUser.uid);
-            const docSnap = await getDoc(userRef);
-
-            if (!docSnap.exists()) {
-                const formattedUser = formatUser(rawUser);
-                await setDoc(userRef, formattedUser);
-            }
+            // We will just use the user object from auth directly.
+            // This avoids the firestore call which is failing.
+            setUser(rawUser);
             
-            const userFromDb = (await getDoc(userRef)).data() as User;
-            setUser(userFromDb);
+            // We can still try to write to firestore in the background
+            // without blocking the user.
+            const userRef = doc(db, 'users', rawUser.uid);
+            getDoc(userRef).then(docSnap => {
+                if (!docSnap.exists()) {
+                    const formattedUser = formatUser(rawUser);
+                    setDoc(userRef, formattedUser).catch(error => {
+                        console.error("Error creating user document:", error);
+                    });
+                }
+            }).catch(error => {
+                console.error("Error checking for user document:", error);
+            });
 
         } else {
             setUser(null);
         }
         setLoading(false);
-        return false;
     };
 
     const signInWithGoogle = async () => {
@@ -57,9 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const provider = new GoogleAuthProvider();
             const result = await signInWithPopup(auth, provider);
-            if (result.user) {
-                await handleUser(result.user);
-            }
+            // handleUser will be called by onAuthStateChanged
         } catch (error) {
             console.error("Error signing in with Google: ", error);
             setLoading(false);
@@ -70,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(true);
         try {
             await firebaseSignOut(auth);
-            handleUser(null);
+            // handleUser will be called by onAuthStateChanged
         } catch (error) {
             console.error("Error signing out: ", error);
             setLoading(false);
