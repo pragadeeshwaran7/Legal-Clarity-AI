@@ -14,9 +14,10 @@ import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
 import { getApps, initializeApp, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth } from "firebase/auth/admin";
 import { headers } from "next/headers";
-import { initializeAuth, signInWithCustomToken } from 'firebase/auth';
+import {credential} from 'firebase-admin';
+import { initializeApp as initializeAdminApp, getApps as getAdminApps } from 'firebase-admin/app';
 
 
 const firebaseConfig = {
@@ -28,53 +29,43 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Client-side app
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-async function getCurrentUserId() {
-    const authHeader = headers().get('Authorization');
-    if (!authHeader) {
-        return null;
-    }
-    const token = authHeader.split('Bearer ')[1];
-
-    try {
-        // This is a workaround to verify the user on the server.
-        // It relies on a client-side fetched ID token passed in the header.
-        // A more robust solution would involve Firebase Admin SDK.
-        const clientAuth = initializeAuth(app, {});
-        const userCredential = await signInWithCustomToken(clientAuth, token).catch(() => {
-             // This will fail because we are not using a custom token, but it forces an auth state check.
-             // The goal is to get the currently signed-in user from the session associated with the API key.
-             // This is not a standard pattern. A proper Admin SDK implementation is preferred.
-             return { user: clientAuth.currentUser };
-        });
-        
-        if (clientAuth.currentUser) {
-            return clientAuth.currentUser.uid;
-        }
-
-        // A fallback for environments where the above trick might not work.
-        // This part of logic is highly dependent on how Firebase JS SDK handles sessions on the server.
-        const auth = getAuth(app);
-        if (auth.currentUser) {
-             return auth.currentUser.uid;
-        }
-        
-        return null;
-
-    } catch (error) {
-        console.error("Error getting current user ID:", error);
-        return null;
+// Admin app
+if (!getAdminApps().length) {
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) : null;
+    if (serviceAccount) {
+      initializeAdminApp({
+        credential: credential.cert(serviceAccount),
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
+    } else if (process.env.NODE_ENV !== 'production') {
+      // Use application default credentials in development
+      initializeAdminApp({
+        projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      });
     }
 }
 
+
+async function getUserIdFromToken(token: string | null) {
+  if (!token) return null;
+  try {
+    const adminAuth = getAuth();
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    return decodedToken.uid;
+  } catch (error) {
+    console.error("Error verifying ID token:", error);
+    return null;
+  }
+}
 
 const FileSchema = z.object({
   file: z
     .instanceof(File)
     .refine((file) => file.size > 0, { message: "File cannot be empty." }),
-  userId: z.string().optional(), // Make userId optional as it's handled server-side
 });
 
 type FormState = {
@@ -90,7 +81,6 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
 }
 
 async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // Use OCR for all PDFs to handle both text-based and scanned documents.
   const b64 = Buffer.from(buffer).toString('base64');
   const dataUri = `data:application/pdf;base64,${b64}`;
   const result = await performOcr({ imageDataUri: dataUri });
@@ -112,18 +102,24 @@ async function getTextFromFile(file: File): Promise<string> {
     return getTextFromPdf(buffer);
   }
   
-  return new TextDecoder().decode(buffer);
+  if (file.type === "text/plain") {
+    return new TextDecoder().decode(buffer);
+  }
+
+  throw new Error(`Unsupported file type: ${file.type}. Please upload a PDF, DOCX, or TXT file.`);
 }
 
 export async function analyzeDocument(
   prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
-  const userId = formData.get("userId") as string | null;
+  const authHeader = headers().get('Authorization');
+  const token = authHeader?.split('Bearer ')[1] ?? null;
+  const userId = await getUserIdFromToken(token);
+
   if (!userId) {
      return { data: null, error: "User not authenticated.", fileName: "", documentText: "" };
   }
-
 
   const validatedFields = FileSchema.safeParse({
     file: formData.get("file"),
@@ -144,10 +140,10 @@ export async function analyzeDocument(
   let documentText = "";
   try {
     documentText = await getTextFromFile(file);
-    if (!documentText || documentText.length < 20) {
+    if (!documentText || documentText.trim().length < 20) {
       return {
         data: null,
-        error: "Could not extract sufficient text from the document. It might be empty, scanned, or in an unsupported format.",
+        error: "Could not extract sufficient text from the document. It might be empty or in an unsupported format. Please try another document.",
         fileName: file.name,
         documentText: "",
       }
@@ -170,7 +166,6 @@ export async function analyzeDocument(
         complianceAnalysis: analysis.complianceAnalysis,
     };
 
-    // Save to Firestore
     try {
         await addDoc(collection(db, "analysisHistory"), {
             userId: userId,
@@ -182,7 +177,6 @@ export async function analyzeDocument(
         });
     } catch(dbError) {
         console.error("Firestore save error:", dbError);
-        // Don't block the user from seeing the result, but log the error.
     }
 
 
@@ -205,12 +199,11 @@ export async function analyzeDocument(
   }
 }
 
-export async function getAnalysisHistory(): Promise<{ history: any[] | null; error: string | null }> {
-    const authHeader = headers().get('Authorization');
-    if (!authHeader) {
-         return { history: null, error: 'User not authenticated.' };
+export async function getAnalysisHistory(token: string): Promise<{ history: any[] | null; error: string | null }> {
+    const userId = await getUserIdFromToken(token);
+    if (!userId) {
+         return { history: null, error: 'User not authenticated or token is invalid.' };
     }
-    const userId = authHeader; // Assuming the whole header is the UID for simplicity
 
     try {
         const q = query(collection(db, "analysisHistory"), where("userId", "==", userId), orderBy("createdAt", "desc"));
@@ -218,7 +211,7 @@ export async function getAnalysisHistory(): Promise<{ history: any[] | null; err
         const history = querySnapshot.docs.map(doc => ({ 
             id: doc.id, 
             ...doc.data(),
-            createdAt: doc.data().createdAt.toDate().toISOString(), // Convert timestamp to string
+            createdAt: doc.data().createdAt.toDate().toISOString(),
         }));
         return { history, error: null };
     } catch (e) {
@@ -227,12 +220,11 @@ export async function getAnalysisHistory(): Promise<{ history: any[] | null; err
     }
 }
 
-export async function getAnalysisById(id: string): Promise<{ data: any | null; error: string | null }> {
-    const authHeader = headers().get('Authorization');
-    if (!authHeader) {
-         return { data: null, error: 'User not authenticated.' };
+export async function getAnalysisById(id: string, token: string): Promise<{ data: any | null; error: string | null }> {
+    const userId = await getUserIdFromToken(token);
+    if (!userId) {
+         return { data: null, error: 'User not authenticated or token is invalid.' };
     }
-    const userId = authHeader; // Assuming the whole header is the UID for simplicity
 
     try {
         const docRef = doc(db, "analysisHistory", id);
@@ -243,8 +235,6 @@ export async function getAnalysisById(id: string): Promise<{ data: any | null; e
         }
 
         const data = docSnap.data();
-
-        // Security check: ensure the document belongs to the requesting user
         if (data.userId !== userId) {
             return { data: null, error: "You are not authorized to view this analysis." };
         }

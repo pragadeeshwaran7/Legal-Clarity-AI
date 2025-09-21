@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Loader2, History, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getAnalysisHistory } from "@/app/actions";
@@ -17,33 +17,39 @@ type AnalysisHistoryItem = {
 };
 
 export default function HistoryPage() {
-  const { user } = useAuth();
+  const { user, getIdToken } = useAuth();
   const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchHistory() {
-      if (!user) return;
+  const fetchHistory = useCallback(async () => {
+    if (!user) return;
 
-      setIsLoading(true);
-      setError(null);
-
-      const { history: fetchedHistory, error: fetchError } = await getAnalysisHistory();
-      
-      if (fetchError) {
-        setError(fetchError);
-      } else if (fetchedHistory) {
-        setHistory(fetchedHistory.map(item => ({
-            ...item,
-            createdAt: new Date(item.createdAt).toLocaleString()
-        })));
-      }
-      setIsLoading(false);
+    setIsLoading(true);
+    setError(null);
+    const token = await getIdToken();
+    if (!token) {
+        setError("You must be logged in to view history.");
+        setIsLoading(false);
+        return;
     }
 
+    const { history: fetchedHistory, error: fetchError } = await getAnalysisHistory(token);
+    
+    if (fetchError) {
+      setError(fetchError);
+    } else if (fetchedHistory) {
+      setHistory(fetchedHistory.map(item => ({
+          ...item,
+          createdAt: new Date(item.createdAt).toLocaleString()
+      })));
+    }
+    setIsLoading(false);
+  }, [user, getIdToken]);
+
+  useEffect(() => {
     fetchHistory();
-  }, [user]);
+  }, [fetchHistory]);
 
   return (
     <div className="w-full">

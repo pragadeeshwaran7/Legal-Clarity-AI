@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getAnalysisById } from "@/app/actions";
 import { AnalysisDisplay } from "@/components/legal-clarity-ai/analysis-display";
@@ -9,6 +9,7 @@ import { Loader2, ShieldX } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 type AnalysisData = {
     id: string;
@@ -19,28 +20,36 @@ type AnalysisData = {
 
 export default function HistoryDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { getIdToken } = useAuth();
   const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchAnalysis() {
-      setIsLoading(true);
-      setError(null);
-      const { data, error: fetchError } = await getAnalysisById(params.id);
-      
-      if (fetchError) {
-        setError(fetchError);
-      } else if (data) {
-        setAnalysisData(data);
-      } else {
-        setError("Could not find the requested analysis.");
-      }
-      setIsLoading(false);
+  const fetchAnalysis = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    const token = await getIdToken();
+    if (!token) {
+        setError("You must be logged in to view history.");
+        setIsLoading(false);
+        return;
     }
 
+    const { data, error: fetchError } = await getAnalysisById(params.id, token);
+    
+    if (fetchError) {
+      setError(fetchError);
+    } else if (data) {
+      setAnalysisData(data);
+    } else {
+      setError("Could not find the requested analysis.");
+    }
+    setIsLoading(false);
+  }, [params.id, getIdToken]);
+
+  useEffect(() => {
     fetchAnalysis();
-  }, [params.id]);
+  }, [fetchAnalysis]);
   
   const handleReset = () => {
     router.push('/dashboard');

@@ -32,6 +32,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// This function will run on the client, and we will pass the token
+// in the headers of our server action calls.
+async function setAuthHeader(token: string) {
+    // This is a conceptual function. In practice, we pass the token
+    // to each server action that needs it.
+}
+
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,8 +65,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const firebaseAuth = getAuth(app);
       setAuth(firebaseAuth);
 
-      const unsubscribe = onAuthStateChanged(firebaseAuth, (user) => {
+      const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
         setUser(user);
+        if (user) {
+            const token = await user.getIdToken();
+            // This is where we would ideally set a header for all subsequent server action calls
+            // but Next.js does not have a built-in provider for this.
+            // Instead, we will fetch the token inside each component that calls a server action.
+        }
         setLoading(false);
       });
 
@@ -90,7 +104,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       else {
         setError(e.message);
       }
-      setLoading(false);
+    } finally {
+        // loading state will be updated by onAuthStateChanged
     }
   };
 
@@ -115,7 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const getIdToken = useCallback(async () => {
     if (!user) return null;
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true); // Force refresh
       return token;
     } catch (error) {
       console.error("Error getting ID token:", error);
@@ -125,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const value = { user, loading, error, signInWithGoogle, signOut, getIdToken };
 
-  if (loading && !auth) {
+  if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
