@@ -1,5 +1,5 @@
-import type { AnalyzeLegalDocumentOutput } from "@/ai/flows/analyze-legal-document";
-import type { AssessDocumentRiskOutput } from "@/ai/flows/assess-document-risk";
+
+import type { AnalyzeLegalDocumentOutput, AssessDocumentRiskOutput } from "@/ai/flows/legal-analysis";
 
 export type AnalysisResult = {
   summary: AnalyzeLegalDocumentOutput["summary"];
@@ -13,3 +13,5 @@ export type QAMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+    
