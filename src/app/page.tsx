@@ -49,20 +49,24 @@ export default function Home() {
   const { user, loading } = useAuth();
   
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [documentText, setDocumentText] = useState<string>('');
   const [key, setKey] = useState(Date.now());
 
 
   const handleAnalysisComplete = (result: AnalysisResult | null, text: string, error?: string | null) => {
     if (result && text) {
       setAnalysisResult(result);
+      setDocumentText(text);
     } else {
       console.error(error || "Analysis failed. Please try again.");
       setAnalysisResult(null);
+      setDocumentText('');
     }
   };
 
   const handleReset = () => {
     setAnalysisResult(null);
+    setDocumentText('');
     setKey(Date.now());
   };
 
@@ -82,10 +86,11 @@ export default function Home() {
   return (
      <div className="flex flex-col min-h-screen">
         <AppHeader />
-        <main className="flex-grow w-full max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex flex-col items-center">
+        <main className="flex-grow w-full max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex flex-col items-center">
          {analysisResult ? (
             <AnalysisDisplay
               analysisResult={analysisResult}
+              documentText={documentText}
               onReset={handleReset}
             />
           ) : (

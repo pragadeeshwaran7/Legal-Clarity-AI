@@ -6,6 +6,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'zod';
+import wav from 'wav';
 
 // Define the schema for a single detailed risk.
 const DetailedRiskSchema = z.object({
@@ -72,7 +73,7 @@ const analyzeLegalDocumentFlow = ai.defineFlow(
 );
 
 
-// Suggest Amendment
+// 2. Suggest Amendment
 const SuggestAmendmentInputSchema = z.object({
   originalClause: z.string().describe('The original, risky legal clause.'),
   riskExplanation: z
@@ -124,3 +125,146 @@ const suggestAmendmentFlow = ai.defineFlow(
     return output!;
   }
 );
+
+
+// 3. Text to Speech
+async function toWav(
+    pcmData: Buffer,
+    channels = 1,
+    rate = 24000,
+    sampleWidth = 2
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const writer = new wav.Writer({
+        channels,
+        sampleRate: rate,
+        bitDepth: sampleWidth * 8,
+      });
+
+      let bufs = [] as any[];
+      writer.on('error', reject);
+      writer.on('data', function (d) {
+        bufs.push(d);
+      });
+      writer.on('end', function () {
+        resolve(Buffer.concat(bufs).toString('base64'));
+      });
+
+      writer.write(pcmData);
+      writer.end();
+    });
+}
+
+const getSpeechFlow = ai.defineFlow(
+    {
+      name: 'getSpeechFlow',
+      inputSchema: z.string(),
+      outputSchema: z.object({ media: z.string() }),
+    },
+    async (text) => {
+      const { media } = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-preview-tts',
+        config: {
+          responseModalities: ['AUDIO'],
+        },
+        prompt: text,
+      });
+      if (!media) {
+        throw new Error('no media returned');
+      }
+      const audioBuffer = Buffer.from(
+        media.url.substring(media.url.indexOf(',') + 1),
+        'base64'
+      );
+      return {
+        media: 'data:audio/wav;base64,' + (await toWav(audioBuffer)),
+      };
+    }
+);
+
+export async function getSpeech(text: string) {
+    return getSpeechFlow(text);
+}
+
+
+// 4. Chat with Document
+const ChatInputSchema = z.object({
+    documentText: z.string().describe("The full text of the legal document."),
+    question: z.string().describe("The user's question about the document.")
+});
+export type ChatInput = z.infer<typeof ChatInputSchema>;
+
+const ChatOutputSchema = z.object({
+    answer: z.string().describe("The AI's answer to the user's question, citing specific laws or IPC sections if applicable.")
+});
+export type ChatOutput = z.infer<typeof ChatOutputSchema>;
+
+export async function chatWithDocument(input: ChatInput): Promise<ChatOutput> {
+    return chatFlow(input);
+}
+
+const chatPrompt = ai.definePrompt({
+    name: 'chatPrompt',
+    input: { schema: ChatInputSchema },
+    output: { schema: ChatOutputSchema },
+    prompt: `You are a legal chatbot. You will answer questions about the provided legal document. When answering, if the question involves legal compliance, liability, or penalties, you must cite relevant laws or sections of the Indian Penal Code (IPC) where applicable.
+
+Document Text:
+{{{documentText}}}
+
+User's Question:
+"{{{question}}}"
+
+Provide a clear and concise answer based on the document text and relevant legal frameworks.
+`
+});
+
+const chatFlow = ai.defineFlow(
+    {
+        name: 'chatFlow',
+        inputSchema: ChatInputSchema,
+        outputSchema: ChatOutputSchema
+    },
+    async (input) => {
+        const { output } = await chatPrompt(input);
+        return output!;
+    }
+);
+
+
+// 5. Simplify Text
+const SimplifyTextInputSchema = z.object({
+    text: z.string().describe("A piece of legal text to be simplified."),
+});
+export type SimplifyTextInput = z.infer<typeof SimplifyTextInputSchema>;
+
+const SimplifyTextOutputSchema = z.object({
+    simplifiedText: z.string().describe("The simplified, easy-to-understand version of the text.")
+});
+export type SimplifyTextOutput = z.infer<typeof SimplifyTextOutputSchema>;
+
+export async function simplifyText(input: SimplifyTextInput): Promise<SimplifyTextOutput> {
+    return simplifyTextFlow(input);
+}
+
+const simplifyTextPrompt = ai.definePrompt({
+    name: 'simplifyTextPrompt',
+    input: { schema: SimplifyTextInputSchema },
+    output: { schema: SimplifyTextOutputSchema },
+    prompt: `You are an AI assistant that simplifies complex legal text into plain English. Do not change the meaning of the text, but make it easy for a non-lawyer to understand.
+
+Original Text:
+"{{{text}}}"
+
+Rewrite the text in simple, clear language.
+`
+});
+
+const simplifyTextFlow = ai.defineFlow({
+    name: 'simplifyTextFlow',
+    inputSchema: SimplifyTextInputSchema,
+    outputSchema: SimplifyTextOutputSchema
+}, async (input) => {
+    const { output } = await simplifyTextPrompt(input);
+    return output!;
+});
