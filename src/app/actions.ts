@@ -14,7 +14,8 @@ import {
 import { z } from "zod";
 import type { AnalysisResult } from "@/lib/types";
 import mammoth from "mammoth";
-import { getApps, initializeApp, getApp, deleteApp } from "firebase/app";
+import pdf from "pdf-parse";
+import { getApps, initializeApp, getApp } from "firebase/app";
 import { getFirestore, collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import * as admin from 'firebase-admin';
 
@@ -30,15 +31,13 @@ try {
                 credential: admin.credential.cert(serviceAccount),
             });
         } else {
-            // This is for local development with `firebase emulators:start`
-            // and for deployed environments where Application Default Credentials are available.
+            // For environments where Application Default Credentials are available.
             admin.initializeApp();
         }
     }
 } catch (error) {
     console.error('Firebase Admin SDK initialization error:', error);
 }
-
 
 // Client-side Firebase App Initialization
 const firebaseConfig = {
@@ -65,13 +64,6 @@ async function getUserIdFromToken(token: string | null) {
   }
 }
 
-const FileSchema = z.object({
-  file: z
-    .instanceof(File)
-    .refine((file) => file.size > 0, { message: "File cannot be empty." }),
-  idToken: z.string().optional(),
-});
-
 type FormState = {
   data: AnalysisResult | null;
   error: string | null;
@@ -84,21 +76,20 @@ async function getTextFromDocx(buffer: ArrayBuffer): Promise<string> {
   return result.value;
 }
 
+async function getTextFromPdf(buffer: ArrayBuffer): Promise<string> {
+    const data = await pdf(Buffer.from(buffer));
+    return data.text;
+}
+
 async function getTextFromFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   
-  if (
-    file.type ===
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  ) {
-    return getTextFromDocx(buffer);
-  }
-
   if (file.type === "application/pdf") {
-    const b64 = Buffer.from(buffer).toString('base64');
-    const dataUri = `data:application/pdf;base64,${b64}`;
-    const result = await performOcr({ imageDataUri: dataUri });
-    return result.text;
+      return getTextFromPdf(buffer);
+  }
+  
+  if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    return getTextFromDocx(buffer);
   }
   
   if (file.type === "text/plain") {
@@ -108,11 +99,90 @@ async function getTextFromFile(file: File): Promise<string> {
   throw new Error(`Unsupported file type: ${file.type}. Please upload a PDF, DOCX, or TXT file.`);
 }
 
-export async function analyzeDocument(
-  prevState: FormState,
-  formData: FormData
-): Promise<FormState> {
-  
+const TextSchema = z.object({
+  text: z.string().min(20, "Pasted text must be at least 20 characters long."),
+  idToken: z.string().optional(),
+});
+
+export async function analyzeText(prevState: FormState, formData: FormData): Promise<FormState> {
+    const validatedFields = TextSchema.safeParse({
+        text: formData.get("text"),
+        idToken: formData.get("idToken"),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            data: null,
+            error: validatedFields.error.flatten().fieldErrors.text?.join(", ") ?? "Invalid text input.",
+            fileName: "Pasted Text",
+            documentText: "",
+        };
+    }
+
+    const { text, idToken } = validatedFields.data;
+    const userId = await getUserIdFromToken(idToken || null);
+
+    if (!userId) {
+        return { data: null, error: "User not authenticated. Please sign in again.", fileName: "Pasted Text", documentText: "" };
+    }
+    
+    try {
+        const [analysis, riskDetails] = await Promise.all([
+            analyzeLegalDocument({ documentText: text }),
+            assessDocumentRisk({ documentText: text }),
+        ]);
+
+        if (!analysis || !riskDetails) {
+            throw new Error("Failed to get a valid analysis from the AI.");
+        }
+
+        const analysisResult = {
+            summary: analysis.summary,
+            riskAssessment: analysis.riskAssessment,
+            keyClauses: analysis.keyClauses,
+            detailedRisks: riskDetails,
+            complianceAnalysis: analysis.complianceAnalysis,
+        };
+
+        try {
+            await addDoc(collection(db, "analysisHistory"), {
+                userId: userId,
+                fileName: "Pasted Text",
+                summary: analysisResult.summary,
+                documentText: text,
+                ...analysisResult,
+                createdAt: serverTimestamp(),
+            });
+        } catch(dbError) {
+            console.error("Firestore save error:", dbError);
+        }
+
+        return {
+            data: analysisResult,
+            error: null,
+            fileName: "Pasted Text",
+            documentText: text,
+        };
+
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during analysis.";
+        return {
+            data: null,
+            error: `Analysis failed: ${errorMessage}`,
+            fileName: "Pasted Text",
+            documentText: text,
+        };
+    }
+}
+
+
+const FileSchema = z.object({
+  file: z.instanceof(File).refine((file) => file.size > 0, { message: "File cannot be empty." }),
+  idToken: z.string().optional(),
+});
+
+export async function analyzeDocument(prevState: FormState, formData: FormData): Promise<FormState> {
   const validatedFields = FileSchema.safeParse({
     file: formData.get("file"),
     idToken: formData.get("idToken"),
@@ -121,20 +191,13 @@ export async function analyzeDocument(
   if (!validatedFields.success) {
     return {
       data: null,
-      error:
-        validatedFields.error.flatten().fieldErrors.file?.join(", ") ??
-        "Invalid input.",
+      error: validatedFields.error.flatten().fieldErrors.file?.join(", ") ?? "Invalid file input.",
       fileName: "",
       documentText: "",
     };
   }
+
   const { file, idToken } = validatedFields.data;
-
-  const userId = await getUserIdFromToken(idToken || null);
-
-  if (!userId) {
-     return { data: null, error: "User not authenticated. Please sign in again.", fileName: file.name, documentText: "" };
-  }
 
   let documentText = "";
   try {
@@ -142,61 +205,34 @@ export async function analyzeDocument(
     if (!documentText || documentText.trim().length < 20) {
       return {
         data: null,
-        error: "Could not extract sufficient text from the document. It might be empty or in an unsupported format. Please try another document.",
+        error: "Could not extract sufficient text from the document. It might be empty, password-protected, or in an unsupported format.",
         fileName: file.name,
         documentText: "",
       }
     }
+  } catch (e) {
+      console.error(e);
+      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred during file processing.";
+      return { data: null, error: `Failed to read file: ${errorMessage}`, fileName: file.name, documentText: "" };
+  }
 
-    const [analysis, riskDetails] = await Promise.all([
-      analyzeLegalDocument({ documentText }),
-      assessDocumentRisk({ documentText }),
-    ]);
-
-    if (!analysis || !riskDetails) {
-      throw new Error("Failed to get a valid analysis from the AI.");
-    }
-    
-    const analysisResult = {
-        summary: analysis.summary,
-        riskAssessment: analysis.riskAssessment,
-        keyClauses: analysis.keyClauses,
-        detailedRisks: riskDetails,
-        complianceAnalysis: analysis.complianceAnalysis,
-    };
-
-    try {
-        await addDoc(collection(db, "analysisHistory"), {
-            userId: userId,
-            fileName: file.name,
-            summary: analysisResult.summary,
-            documentText: documentText,
-            ...analysisResult,
-            createdAt: serverTimestamp(),
-        });
-    } catch(dbError) {
-        console.error("Firestore save error:", dbError);
-        // Non-fatal error, we can still return the analysis to the user
-    }
-
-
-    return {
-      data: analysisResult,
+  const newFormData = new FormData();
+  newFormData.append('text', documentText);
+  if (idToken) {
+      newFormData.append('idToken', idToken);
+  }
+  
+  const textAnalysisResult = await analyzeText({
+      data: null,
       error: null,
       fileName: file.name,
-      documentText,
-    };
-  } catch (e) {
-    console.error(e);
-    const errorMessage =
-      e instanceof Error ? e.message : "An unknown error occurred during analysis.";
-    return {
-      data: null,
-      error: `Analysis failed: ${errorMessage}`,
-      fileName: file.name,
       documentText: "",
-    };
-  }
+  }, newFormData);
+
+  return {
+      ...textAnalysisResult,
+      fileName: file.name, // Ensure original file name is preserved
+  };
 }
 
 export async function getAnalysisHistory(token: string): Promise<{ history: any[] | null; error: string | null }> {
@@ -385,5 +421,3 @@ export async function getAudioSummary(formData: FormData): Promise<{
         };
     }
 }
-
-    
