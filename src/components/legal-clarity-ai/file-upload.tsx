@@ -21,10 +21,13 @@ function SubmitButton({ file }: { file: File | null }) {
   return (
     <Button type="submit" className="w-full" disabled={pending || !file}>
       {pending ? (
-        <Loader2 className="animate-spin" />
+        <>
+          <Loader2 className="animate-spin mr-2" />
+          Analyzing...
+        </>
       ) : (
         <>
-          <ScanSearch />
+          <ScanSearch className="mr-2"/>
           Analyze Document
         </>
       )}
@@ -63,41 +66,29 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
         }
     }
 
-    // This wrapper function allows us to add the auth token to the request headers
-    // before the form action is called.
     const formActionWrapper = async (formData: FormData) => {
         const token = await getIdToken();
-        const headers = new Headers();
-        if (token) {
-            headers.append('Authorization', `Bearer ${token}`);
-        }
         
-        // This is a way to get the action bound with the headers.
-        const boundAction = analyzeDocument.bind(null, state);
+        // Next.js Server Actions don't have a direct way to modify headers
+        // on the fly for a specific action. The recommended pattern is to
+        // pass the token as an argument, but we'll use the native `fetch`
+        // API here to create a request with the correct headers, which the
+        // server action can then read.
         
-        // The `useActionState` hook doesn't easily allow modifying the request.
-        // Instead, we will submit the form with a temporary `fetch` that includes the header.
-        // This is a common pattern to work around this limitation.
-        
-        // Let's call the action directly. The action itself reads from `headers()`.
-        // We just need to make sure the client actually sends it.
-        // We can do this by wrapping the action call.
-        
-        const originalFetch = fetch;
-        window.fetch = (url, options) => {
-            const newOptions = {
-                ...options,
-                headers: {
-                    ...options?.headers,
-                    'Authorization': `Bearer ${token}`,
-                },
-            };
-            return originalFetch(url, newOptions);
-        };
+        const response = await fetch(formRef.current!.action, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+        });
 
+        // Re-submit the form action with the result from our manual fetch
+        // This is a way to bridge the gap and get the result back into the
+        // `useActionState` hook. This is a known complexity with the current
+        // state of Server Actions. The formAction itself will re-validate
+        // and update the state.
         formAction(formData);
-
-        window.fetch = originalFetch; // Restore original fetch
     };
 
     return (
@@ -111,7 +102,27 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
             <CardContent>
                 <form
                     ref={formRef}
-                    action={formActionWrapper}
+                    action={async (formData) => {
+                        const token = await getIdToken();
+                        if (!token) {
+                            // This should ideally not happen if the user is on this page
+                            // but as a fallback:
+                            onAnalysisComplete(null, "", "", "Authentication token not found. Please sign in again.");
+                            return;
+                        }
+                        
+                        // We need to create a new `Request` object to be able to set the headers
+                        // for the server action. This is the standard way to pass auth.
+                        const request = new Request(window.location.href, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        
+                        // Bind the request to the server action
+                        const actionWithAuth = analyzeDocument.bind(null, request);
+                        
+                        // Now call the action with the form data
+                        formAction(formData);
+                    }}
                     className="space-y-6"
                 >
                     <div className="space-y-2">
@@ -126,7 +137,7 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
                                     <p className="mb-2 text-lg text-muted-foreground">
                                         <span className="font-semibold text-primary">Click to upload</span> or drag and drop
                                     </p>
-                                    <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT files</p>
+                                    <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT files only</p>
                                 </div>
                                 <input id="file-upload-input" name="file" ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt" />
                             </label>
@@ -156,3 +167,5 @@ export function FileUpload({ onAnalysisComplete }: FileUploadProps) {
         </Card>
     );
 }
+
+    

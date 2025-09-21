@@ -88,7 +88,7 @@ export function ComparisonSection({
                       <p className="mb-2 text-sm text-muted-foreground">
                         <span className="font-semibold">Upload second document</span>
                       </p>
-                      <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT files</p>
+                      <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT files only</p>
                     </div>
                     <input id="file-upload-input-compare" name="file" ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.txt"/>
                   </label>
@@ -147,3 +147,5 @@ export function ComparisonSection({
     </Card>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -141,7 +142,7 @@ export function RiskAssessmentSection({
           </CardContent>
            <CardFooter className="flex-col items-start gap-4">
             <Button onClick={handleGenerateAudio} disabled={isLoadingAudio} variant="outline" size="sm">
-              {isLoadingAudio ? <Loader2 className="animate-spin" /> : <Volume2 />}
+              {isLoadingAudio ? <Loader2 className="animate-spin mr-2" /> : <Volume2 className="mr-2"/>}
               Read Summary
             </Button>
             {audioError && <Alert variant="destructive"><AlertDescription>{audioError}</AlertDescription></Alert>}
@@ -291,3 +292,5 @@ export function RiskAssessmentSection({
     </>
   );
 }
+
+    
